@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 
-class MessageReader implements Reader<Message> {
+public class MessageReader implements Reader<Message> {
 	private enum State {
 		DONE, WAITING, ERROR
 	};
