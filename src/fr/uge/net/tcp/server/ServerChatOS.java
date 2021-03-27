@@ -13,7 +13,7 @@ public class ServerChatOS {
 	}
 
 	private static void usage() {
-		System.out.println("Usage : ServerChaton port");
+		System.out.println("Usage : ServerChatOS port");
 	}
 
 }

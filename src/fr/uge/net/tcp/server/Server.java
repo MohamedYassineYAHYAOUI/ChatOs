@@ -20,33 +20,40 @@ import java.util.logging.Logger;
 
 import fr.uge.net.tcp.server.Reader.ProcessStatus;
 
- class Server {
+class Server {
 
 	static private int BUFFER_SIZE = 1_024;
 	static private Logger logger = Logger.getLogger(Server.class.getName());
 
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
-	
+	private final ServerOperations serverOperations;
 
-	public Server(int port) throws IOException{
+	public Server(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
 		serverSocketChannel.bind(new InetSocketAddress(port));
 		selector = Selector.open();
+		serverOperations = new ServerOperations();
 	}
-	
+
+	void registerLogin(String login, SelectionKey key) {
+		var context = (ClientContext) key.attachment();
+		var respond = serverOperations.regesterLogin(login, (SocketChannel)key.channel());
+		context.queueResponse(respond);
+	}
+
 	private void doAccept(SelectionKey key) throws IOException {
 		var ssc = (ServerSocketChannel) key.channel();
 		var sc = ssc.accept();
-		
+
 		if (sc != null) {
 			sc.configureBlocking(false);
 			var scKey = sc.register(selector, SelectionKey.OP_READ);
 			scKey.attach(new ClientContext(this, scKey));
 		}
 	}
-	
-	 void launch() throws IOException {
+
+	void launch() throws IOException {
 		serverSocketChannel.configureBlocking(false);
 		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
 		while (!Thread.interrupted()) {
@@ -60,8 +67,7 @@ import fr.uge.net.tcp.server.Reader.ProcessStatus;
 			System.out.println("Select finished");
 		}
 	}
-	
-	
+
 	private void treatKey(SelectionKey key) {
 		printSelectedKey(key); // for debug
 		try {
@@ -74,18 +80,16 @@ import fr.uge.net.tcp.server.Reader.ProcessStatus;
 		}
 		try {
 			if (key.isValid() && key.isWritable()) {
-				((Context) key.attachment()).doWrite();
+				((ClientContext) key.attachment()).doWrite();
 			}
 			if (key.isValid() && key.isReadable()) {
-				((Context) key.attachment()).doRead();
+				((ClientContext) key.attachment()).doRead();
 			}
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Connection closed with client due to IOException", e);
 			silentlyClose(key);
 		}
 	}
-	
-	
 
 	private void silentlyClose(SelectionKey key) {
 		Channel sc = (Channel) key.channel();
@@ -96,9 +100,6 @@ import fr.uge.net.tcp.server.Reader.ProcessStatus;
 		}
 	}
 
-
-	
-	
 	/***
 	 * Theses methods are here to help understanding the behavior of the selector
 	 ***/

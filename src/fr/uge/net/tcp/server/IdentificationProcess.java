@@ -1,28 +1,32 @@
 package fr.uge.net.tcp.server;
 
 import java.nio.ByteBuffer;
+import java.util.Objects;
 import java.util.logging.Logger;
 
 
-class MessageReader implements Reader<Message> {
+class IdentificationProcess implements Reader<String>{
 	private enum State {
 		DONE, WAITING, ERROR
 	};
 	static private Logger logger = Logger.getLogger(MessageReader.class.getName());
 	private State state = State.WAITING;
 	private final StringReader stringReader = new StringReader();
-	private final Message.Builder builder = new Message.Builder();
-	private Message message = null;
+	//private final Message.Builder builder = new Message.Builder();
+	private String  login = null;
 	private boolean readLogIn = false;
-	private boolean readMsg = false;
+	private final Server server;
 	
-
+	IdentificationProcess(Server server){
+		this.server = Objects.requireNonNull(server);
+	}
+	
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-        while(!readLogIn || !readMsg) {
+        while(!readLogIn) {
         	
     		var srState = stringReader.process(bb);
     		if (srState != ProcessStatus.DONE) {
@@ -30,37 +34,31 @@ class MessageReader implements Reader<Message> {
     		}
         	if(!readLogIn) {
         		readLogIn = true;
-        		builder.setLogin(stringReader.get());
-
-        	}else {
-        		readMsg = true;
-        		builder.setMessage(stringReader.get());
-        		stringReader.reset();	
+        		login = stringReader.get();
+        		//builder.setLogin(stringReader.get());
         	}
     		stringReader.reset();
-        	
         }
-
-        message = builder.build();
         state=State.DONE;
         return ProcessStatus.DONE;
 	}
 
 	@Override
-	public Message get() {
+	public String get() {
 		if(state != State.DONE ) {
 			throw new IllegalStateException();
 		}
-		return message;
+		return login;
 	}
 
 	@Override
 	public void reset() {
 		state = State.WAITING;
 		stringReader.reset();
-		message= null;
+		login= null;
 		readLogIn = false;
-		readMsg = false;
 	}
 
+	
+	
 }
