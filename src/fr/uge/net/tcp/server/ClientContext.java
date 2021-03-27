@@ -18,7 +18,7 @@ import fr.uge.net.tcp.server.replies.Response.ResponseCodes;
 class ClientContext {
 
 	static private final int BUFFER_SIZE = 1_024;
-	static private final Charset UTF8 = Charset.forName("UTF8");
+	// static private final Charset UTF8 = Charset.forName("UTF8");
 	static private final Logger logger = Logger.getLogger(ClientContext.class.getName());
 
 	final private SelectionKey key;
@@ -34,7 +34,7 @@ class ClientContext {
 
 	private boolean closed = false;
 	private boolean acceptedAsClient = false;
-	private ProcessStatus processing = ProcessStatus.REFILL;
+	private boolean receivedCode = false;
 
 	ClientContext(Server server, SelectionKey key) {
 
@@ -56,28 +56,38 @@ class ClientContext {
 		if (closed) {
 			return;
 		}
-		var processing = intReader.process(bbin);
-		if (processing == ProcessStatus.DONE) {
-			// server.broadcast(messageReader.get());
+
+		if (!receivedCode) {
+			switch (intReader.process(bbin)) {
+			case DONE:
+				receivedCode = true;
+				break;
+			case REFILL:
+				return;
+			case ERROR:
+				logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
+				silentlyClose();
+				return;
+			}
+		}
+		//TODO changer les int dans les cases en ResponseCode
+		if (receivedCode) {
 			switch (intReader.get()) {
 			case 0:
-				// var idProcess = new IdentificationProcess(server);
-				// idProcess.process(bbin);
 				var stringReader = new StringReader();
 				if (stringReader.process(bbin) == ProcessStatus.DONE) {
 					server.registerLogin(stringReader.get(), key);
+					intReader.reset();
+					receivedCode = false;
 				}
+				break;
+			case 3:
+
 				break;
 			default:
 				logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
 			}
-			intReader.reset();
-		} else if (processing == ProcessStatus.REFILL) {
-			return;
-		} else {
-			logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
-			silentlyClose();
-			return;
+
 		}
 	}
 
@@ -151,7 +161,7 @@ class ClientContext {
 			var response = queue.poll();
 			if (response != null) {
 				bbout.put(response.getResponseBuffer().flip());
-				if(response.getResponseCode() == ResponseCodes.LOGIN_REFUSED) {
+				if (response.getResponseCode() == ResponseCodes.LOGIN_REFUSED) {
 					closed = true;
 				}
 			} else {
