@@ -28,7 +28,7 @@ class ClientContext {
 
 	final private Queue<Response> queue = new LinkedList<>();
 	final private Server server;
-	// final private MessageReader messageReader = new MessageReader();
+	//final private MessageReader messageReader = new MessageReader();
 	final private IntReader intReader = new IntReader();
 	// final private Operation operation;
 
@@ -82,6 +82,7 @@ class ClientContext {
 				}
 				break;
 			case 3:
+				
 
 				break;
 			default:
