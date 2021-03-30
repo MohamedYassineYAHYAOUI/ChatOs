@@ -2,6 +2,7 @@ package fr.uge.net.tcp.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.ClosedChannelException;
 import java.nio.channels.IllegalSelectorException;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
@@ -28,8 +29,9 @@ class ClientContext {
 
 	final private Queue<Response> queue = new LinkedList<>();
 	final private Server server;
-	//final private MessageReader messageReader = new MessageReader();
+	final private MessageReader messageReader = new MessageReader();
 	final private IntReader intReader = new IntReader();
+	final private StringReader stringReader = new StringReader();
 	// final private Operation operation;
 
 	private boolean closed = false;
@@ -74,15 +76,18 @@ class ClientContext {
 		if (receivedCode) {
 			switch (intReader.get()) {
 			case 0:
-				var stringReader = new StringReader();
+				//var stringReader = new StringReader();
 				if (stringReader.process(bbin) == ProcessStatus.DONE) {
 					server.registerLogin(stringReader.get(), key);
 					intReader.reset();
+					stringReader.reset();
 					receivedCode = false;
 				}
 				break;
 			case 3:
-				
+				if(messageReader.process(bbin) == ProcessStatus.DONE) {
+					server.broadcast(messageReader.getLogin(), messageReader.getMessage(), key);
+				}
 
 				break;
 			default:
@@ -186,6 +191,21 @@ class ClientContext {
 
 		processIn();
 		updateInterestOps();
+	}
+	
+	
+	@Override
+	public boolean equals(Object obj) {
+		if( !(obj instanceof ClientContext)) {
+			return false;
+		}
+		var context = (ClientContext) obj;
+		try {
+			return sc.getRemoteAddress().toString().equals(
+					context.sc.getRemoteAddress().toString());
+		} catch (IOException e ) {
+			return false;
+		}
 	}
 
 }

@@ -3,22 +3,20 @@ package fr.uge.net.tcp.server;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
+
 import java.nio.channels.Channel;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.LinkedList;
-import java.util.Queue;
+
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.Reader.ProcessStatus;
+import fr.uge.net.tcp.server.replies.PublicMessageResponse;
 
 class Server {
 
@@ -41,6 +39,25 @@ class Server {
 		var respond = serverOperations.regesterLogin(login, (SocketChannel)key.channel());
 		context.queueResponse(respond);
 	}
+	
+	void broadcast(String login, String message,  SelectionKey key) throws IOException {
+		var sc =  (SocketChannel) key.channel();
+		
+		if(serverOperations.validUser(login, sc)) {
+			var senderContext = (ClientContext) key.attachment();
+			for (var clientKey : selector.keys()) {
+				var context = (ClientContext) clientKey.attachment();
+				if(context != null && !context.equals(senderContext)) {
+					context.queueResponse(new PublicMessageResponse(login, message));
+				}
+			}
+		}else {
+			logger.log(Level.INFO, "invalide request ignored from "+sc.getRemoteAddress());
+		}
+	}
+	
+	
+	
 
 	private void doAccept(SelectionKey key) throws IOException {
 		var ssc = (ServerSocketChannel) key.channel();

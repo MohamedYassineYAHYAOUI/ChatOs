@@ -4,17 +4,19 @@ import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 
-class MessageReader implements Reader<Message> {
+
+class MessageReader implements Reader<String> {
 	private enum State {
 		DONE, WAITING, ERROR
 	};
 	static private Logger logger = Logger.getLogger(MessageReader.class.getName());
 	private State state = State.WAITING;
 	private final StringReader stringReader = new StringReader();
-	private final Message.Builder builder = new Message.Builder();
-	private Message message = null;
+	private String message = null;
+	private String login = null;
 	private boolean readLogIn = false;
 	private boolean readMsg = false;
+	
 	
 
 	@Override
@@ -30,30 +32,33 @@ class MessageReader implements Reader<Message> {
     		}
         	if(!readLogIn) {
         		readLogIn = true;
-        		builder.setLogin(stringReader.get());
+        		login = stringReader.get();
 
         	}else {
         		readMsg = true;
-        		builder.setMessage(stringReader.get());
+        		message = stringReader.get();
         		stringReader.reset();	
         	}
     		stringReader.reset();
         	
         }
-
-        message = builder.build();
         state=State.DONE;
         return ProcessStatus.DONE;
 	}
 
 	@Override
-	public Message get() {
-		if(state != State.DONE ) {
-			throw new IllegalStateException();
-		}
+	public String get() {
+		throw new IllegalStateException("use getMessage() or getLogin()");
+	}
+	
+	public String getMessage() {
 		return message;
 	}
-
+	
+	public String getLogin() {
+		return login;
+	}
+	
 	@Override
 	public void reset() {
 		state = State.WAITING;
