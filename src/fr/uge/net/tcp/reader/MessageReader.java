@@ -1,10 +1,10 @@
-package fr.uge.net.tcp.server;
+package fr.uge.net.tcp.reader;
 
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 
-class MessageReader implements Reader<String> {
+public class MessageReader implements Reader<String> {
 
 	private enum State {
 		DONE, WAITING, ERROR

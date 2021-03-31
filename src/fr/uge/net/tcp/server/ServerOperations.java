@@ -9,7 +9,7 @@ import java.util.Objects;
 import fr.uge.net.tcp.server.replies.LoginResponse;
 import fr.uge.net.tcp.server.replies.PublicMessageResponse;
 import fr.uge.net.tcp.server.replies.Response;
-import fr.uge.net.tcp.server.replies.Response.ResponseCodes;
+import fr.uge.net.tcp.server.replies.Response.Codes;
 
 
 class ServerOperations {
@@ -23,11 +23,16 @@ class ServerOperations {
 
 	Response regesterLogin(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
+		System.out.println("------------");
+		System.out.println("clinet login "+login);
+		for (String  key : clients.keySet()) {
+			System.out.println("login "+ key+" sc"+clients.get(key));
+		}
 		if(clients.containsKey(login)) {
-			return new LoginResponse(ResponseCodes.LOGIN_REFUSED);
+			return new LoginResponse(Codes.LOGIN_REFUSED);
 		}else {
 			clients.put(login, sc);
-			return new LoginResponse(ResponseCodes.LOGIN_ACCEPTED);
+			return new LoginResponse(Codes.LOGIN_ACCEPTED);
 		}
 	}
 	

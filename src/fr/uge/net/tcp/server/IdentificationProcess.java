@@ -3,7 +3,7 @@ package fr.uge.net.tcp.server;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.logging.Logger;
-
+import fr.uge.net.tcp.reader.*;
 
 class IdentificationProcess implements Reader<String>{
 	private enum State {

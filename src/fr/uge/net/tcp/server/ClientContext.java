@@ -12,9 +12,11 @@ import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.Reader.ProcessStatus;
+import fr.uge.net.tcp.reader.*;
+import fr.uge.net.tcp.reader.Reader.ProcessStatus;
+
 import fr.uge.net.tcp.server.replies.Response;
-import fr.uge.net.tcp.server.replies.Response.ResponseCodes;
+import fr.uge.net.tcp.server.replies.Response.Codes;
 
 class ClientContext {
 
@@ -45,6 +47,26 @@ class ClientContext {
 		this.server = server;
 	}
 
+	private boolean processCode() throws IOException {
+		
+		if(!receivedCode) {
+			switch (intReader.process(bbin)) {
+			case DONE:
+				receivedCode = true;
+				return true;
+			case REFILL:
+				return false;
+			case ERROR:
+				logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
+				silentlyClose();
+				return false;
+			default:
+				return false;
+			}
+		}
+		return true;
+	}
+
 	/**
 	 * Process the content of bbin
 	 *
@@ -58,25 +80,17 @@ class ClientContext {
 		if (closed) {
 			return;
 		}
-
-		if (!receivedCode) {
-			switch (intReader.process(bbin)) {
-			case DONE:
-				receivedCode = true;
-				break;
-			case REFILL:
-				return;
-			case ERROR:
-				logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
-				silentlyClose();
-				return;
-			}
+		System.out.println("test 1");
+		if(!processCode()) {
+			return ;
 		}
-		//TODO changer les int dans les cases en ResponseCode
+
+		System.out.println("test 2");
+		// TODO changer les int dans les cases en ResponseCode
 		if (receivedCode) {
 			switch (intReader.get()) {
 			case 0:
-				//var stringReader = new StringReader();
+				System.out.println("connecting");
 				if (stringReader.process(bbin) == ProcessStatus.DONE) {
 					server.registerLogin(stringReader.get(), key);
 					intReader.reset();
@@ -85,7 +99,8 @@ class ClientContext {
 				}
 				break;
 			case 3:
-				if(messageReader.process(bbin) == ProcessStatus.DONE) {
+				System.out.println("message public");
+				if (messageReader.process(bbin) == ProcessStatus.DONE) {
 					server.broadcast(messageReader.getLogin(), messageReader.getMessage(), key);
 				}
 
@@ -128,6 +143,8 @@ class ClientContext {
 
 	private void updateInterestOps() {
 		int intrestOps = 0;
+		System.out.println("closed "+closed);
+		System.out.println("has remaining "+bbin.hasRemaining());
 		if (bbin.hasRemaining() && !closed) {
 			intrestOps |= SelectionKey.OP_READ;
 		}
@@ -135,6 +152,7 @@ class ClientContext {
 			intrestOps |= SelectionKey.OP_WRITE;
 		}
 		if (intrestOps == 0) {
+			System.out.println("intrest ops");
 			silentlyClose();
 		} else {
 			key.interestOps(intrestOps);
@@ -151,6 +169,7 @@ class ClientContext {
 	 */
 
 	void doWrite() throws IOException {
+		
 		processOut();
 		bbout.flip();
 		sc.write(bbout);
@@ -167,7 +186,7 @@ class ClientContext {
 			var response = queue.poll();
 			if (response != null) {
 				bbout.put(response.getResponseBuffer().flip());
-				if (response.getResponseCode() == ResponseCodes.LOGIN_REFUSED) {
+				if (response.getResponseCode() == Codes.LOGIN_REFUSED) {
 					closed = true;
 				}
 			} else {
@@ -192,18 +211,16 @@ class ClientContext {
 		processIn();
 		updateInterestOps();
 	}
-	
-	
+
 	@Override
 	public boolean equals(Object obj) {
-		if( !(obj instanceof ClientContext)) {
+		if (!(obj instanceof ClientContext)) {
 			return false;
 		}
 		var context = (ClientContext) obj;
 		try {
-			return sc.getRemoteAddress().toString().equals(
-					context.sc.getRemoteAddress().toString());
-		} catch (IOException e ) {
+			return sc.getRemoteAddress().toString().equals(context.sc.getRemoteAddress().toString());
+		} catch (IOException e) {
 			return false;
 		}
 	}

@@ -4,18 +4,18 @@ import java.nio.ByteBuffer;
 
 public class LoginResponse implements Response  {
 	
-	private final ResponseCodes responseCode;
+	private final Codes responseCode;
 
-	public LoginResponse(ResponseCodes responseCodes){
-		if(responseCodes != ResponseCodes.LOGIN_ACCEPTED
-			&& responseCodes != ResponseCodes.LOGIN_REFUSED) {
+	public LoginResponse(Codes responseCodes){
+		if(responseCodes != Codes.LOGIN_ACCEPTED
+			&& responseCodes != Codes.LOGIN_REFUSED) {
 			throw new IllegalArgumentException("Code not valide");
 		}
 		responseCode = responseCodes;
 	}
 
 	@Override
-	public ResponseCodes getResponseCode() {
+	public Codes getResponseCode() {
 		return responseCode;
 	}
 

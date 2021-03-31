@@ -5,12 +5,14 @@ import java.nio.charset.Charset;
 
 public interface Response {
 	final Charset UTF8 = Charset.forName("utf8");
-	enum ResponseCodes {
-		LOGIN_ACCEPTED(10), LOGIN_REFUSED(11), PUBLIC_MESSAGE(1);
-
+	static enum Codes {
+		LOGIN_ACCEPTED(10), LOGIN_REFUSED(11), PUBLIC_MESSAGE(1),
+		REQUEST_CONNECTION(0);
+		
+		
 		private int code;
 
-		ResponseCodes(int code) {
+		Codes(int code) {
 			this.code = code;
 		}
 
@@ -19,7 +21,7 @@ public interface Response {
 		}
 	}
 
-	ResponseCodes getResponseCode();
+	Codes getResponseCode();
 
 	int size();
 

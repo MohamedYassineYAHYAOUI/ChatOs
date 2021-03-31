@@ -5,268 +5,258 @@ import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
+import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
+import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
+import java.nio.charset.Charset;
+import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.Objects;
 import java.util.Queue;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.MessageReader;
+import fr.uge.net.tcp.server.replies.Response.Codes;
 
 public class ClientOS {
-    static private class Context {
+	static private int BUFFER_SIZE = 10_000;
+	static private int MAX_LOGIN_SIZE = 30;
+	static private final Charset UTF8 = Charset.forName("utf8");
+	static private Logger logger = Logger.getLogger(ClientOS.class.getName());
 
-        final private SelectionKey key;
-        final private SocketChannel sc;
-        final private ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
-        final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
-        final private Queue<ByteBuffer> queue = new LinkedList<>(); // buffers read-mode
-        final private MessageReader messageReader = new MessageReader();
-        private boolean closed = false;
+	private final SocketChannel sc;
+	private final Selector selector;
+	private final InetSocketAddress serverAddress;
+	private final String login;
+	private String msg;
+	private final Thread console;
+	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
+	private final Path folderPath;
+	private Context uniqueContext;
 
-        private Context(SelectionKey key){
-            this.key = key;
-            this.sc = (SocketChannel) key.channel();
-        }
+	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
+		Objects.requireNonNull(login);
+		if (login.length() > MAX_LOGIN_SIZE) {
+			throw new IllegalArgumentException("login must be less then " + MAX_LOGIN_SIZE + " characters");
+		}
+		this.folderPath = Objects.requireNonNull(folderPath);
+		this.serverAddress = Objects.requireNonNull(serverAddress);
+		this.login = login;
+		this.sc = SocketChannel.open();
+		this.selector = Selector.open();
+		this.console = new Thread(this::consoleRun);
 
-        /**
-         * Process the content of bbin
-         *
-         * The convention is that bbin is in write-mode before the call
-         * to process and after the call
-         *
-         */
-        private void processIn() {
-            bbin.flip();
-            while(bbin.remaining() >= Integer.BYTES) {
-         	   //sc.broadcast(bbin.get());
-            }
-            bbin.compact();
-        }
+	}
 
-        /**
-         * Add a message to the message queue, tries to fill bbOut and updateInterestOps
-         *
-         * @param bb
-         */
-        private void queueMessage(ByteBuffer bb) {
-            queue.add(bb);
-            processOut();
-            updateInterestOps();
-        }
+	private void consoleRun() {
+		try {
+			var scan = new Scanner(System.in);
+			while (scan.hasNextLine()) {
+				var msg = scan.nextLine();
+				sendCommand(msg);
+			}
+		} catch (InterruptedException e) {
+			logger.info("Console thread has been interrupted");
+		} finally {
+			logger.info("Console thread stopping");
+		}
+	}
 
-        /**
-         * Try to fill bbout from the message queue
-         *
-         */
-        private void processOut() {
-            while (!queue.isEmpty()){
-                var bb = queue.peek();
-                if (bb.remaining()<=bbout.remaining()){
-                    queue.remove();
-                    bbout.put(bb);
-                } else {
-                    break;
-                }
-            }
-        }
+	/**
+	 * Send a command to the selector via commandQueue and wake it up
+	 *
+	 * @param msg
+	 * @throws InterruptedException
+	 */
 
-        /**
-         * Update the interestOps of the key looking
-         * only at values of the boolean closed and
-         * of both ByteBuffers.
-         *
-         * The convention is that both buffers are in write-mode before the call
-         * to updateInterestOps and after the call.
-         * Also it is assumed that process has been be called just
-         * before updateInterestOps.
-         */
+	private void sendCommand(String msg) throws InterruptedException {
+		Objects.requireNonNull(msg);
+		try {
+			synchronized (serverAddress) {
+				commandQueue.add(msg);
+			}
+			// selector.wakeup();
+		} catch (IllegalStateException e) {
+			logger.warning("queue is full, msg ignored");
+		}
+	}
 
-        private void updateInterestOps() {
-            var interesOps=0;
-            if (!closed && bbin.hasRemaining()){
-                interesOps=interesOps|SelectionKey.OP_READ;
-            }
-            if (bbout.position()!=0){
-                interesOps|=SelectionKey.OP_WRITE;
-            }
-            if (interesOps==0){
-                silentlyClose();
-                return;
-            }
-            key.interestOps(interesOps);
-        }
+	/**
+	 * Processes the command from commandQueue
+	 */
 
-        private void silentlyClose() {
-            try {
-                sc.close();
-            } catch (IOException e) {
-                // ignore exception
-            }
-        }
+	private void processCommands() {
+		// intrestOPS
+		synchronized (serverAddress) {
+			if (uniqueContext.isConnected()) {
+				while (!commandQueue.isEmpty()) {
+					var msg = commandQueue.poll();
+					// ->analyse de message
 
-        /**
-         * Performs the read action on sc
-         *
-         * The convention is that both buffers are in write-mode before the call
-         * to doRead and after the call
-         *
-         * @throws IOException
-         */
-        private void doRead() throws IOException {
-            if (sc.read(bbin)==-1) {
-                closed=true;
-            }
-            processIn();
-            updateInterestOps();
-        }
+					// var bb = ByteBuffer.allocate(BUFFER_SIZE);
+					// bb.putInt(login.length()).put(Context.UTF8.encode(login));
+					// bb.putInt(msg.length()).put(Context.UTF8.encode(msg));
+					// uniqueContext.queueMessage(bb);
+				}
+			}
 
-        /**
-         * Performs the write action on sc
-         *
-         * The convention is that both buffers are in write-mode before the call
-         * to doWrite and after the call
-         *
-         * @throws IOException
-         */
+		}
+	}
 
-        private void doWrite() throws IOException {
-            bbout.flip();
-            sc.write(bbout);
-            bbout.compact();
-            processOut();
-            updateInterestOps();
-        }
+	private void processConnection() {
+		var bb = ByteBuffer.allocate(2 * Integer.BYTES + MAX_LOGIN_SIZE * Character.BYTES);
+		bb.putInt(Codes.REQUEST_CONNECTION.getCode());
+		bb.putInt(login.length()).put(UTF8.encode(login));
+		System.out.println("queue message");
+		uniqueContext.queueMessage(bb);
+		// selector.wakeup();
 
-        public void doConnect() throws IOException {
-            if(!sc.finishConnect()) {
-            	return;
-            }
-            key.interestOps(SelectionKey.OP_READ);
-        }
-    }
-    static private int BUFFER_SIZE = 10_000;
-    static private Logger logger = Logger.getLogger(ClientOS.class.getName());
+	}
 
+	public void launch() throws IOException {
+		sc.configureBlocking(false);
+		var key = sc.register(selector, SelectionKey.OP_CONNECT);
+		uniqueContext = new Context(key);
+		key.attach(uniqueContext);
+		sc.connect(serverAddress);
 
-    private final SocketChannel sc;
-    private final Selector selector;
-    private final InetSocketAddress serverAddress;
-    private final String login;
-    private int code;
-    private String msg;
-    private final Thread console;
-    private final ArrayBlockingQueue<Integer> commandQueue = new ArrayBlockingQueue<>(10);
-    private Context uniqueContext;
+		// processConnection();
 
-    public ClientOS(String login, InetSocketAddress serverAddress) throws IOException {
-    	Objects.requireNonNull(login);
-    	Objects.requireNonNull(serverAddress);
-        this.serverAddress = serverAddress;
-        this.login = login;
-        this.sc = SocketChannel.open();
-        this.selector = Selector.open();
-        this.console = new Thread(this::consoleRun);
-        this.code = 0;
-    }
+		console.start(); // aprés validation de connection
 
-    private void consoleRun() {
-        try {
-            var scan = new Scanner(System.in);
-            while (scan.hasNextInt()) {
-                var code = scan.nextInt();
-                sendCommand(code);
-            }
-        } catch (InterruptedException e) {
-            logger.info("Console thread has been interrupted");
-        } finally {
-            logger.info("Console thread stopping");
-        }
-    }
+		while (!Thread.interrupted()) {
+			try {
+				printKeys(); // for debug
+				System.out.println("Starting select");
 
-    /**
-     * Send a command to the selector via commandQueue and wake it up
-     *
-     * @param msg
-     * @throws InterruptedException
-     */
+				selector.select(this::treatKey);
+				if (!uniqueContext.isConnected()) {
+					processConnection();
+				} else {
+					processCommands();
+				}
 
+				System.out.println("Select finished");
+			} catch (UncheckedIOException tunneled) {
+				throw tunneled.getCause();
+			}
+		}
+	}
 
-    private void sendCommand(int code) throws InterruptedException {
-    	Objects.requireNonNull(code);
-    	synchronized(this.sc) {
-    		commandQueue.put(code);
-    	}
-    }
+	private void treatKey(SelectionKey key) {
+		printSelectedKey(key);
+		try {
+			if (key.isValid() && key.isConnectable()) {
+				uniqueContext.doConnect();
+			}
+			if (key.isValid() && key.isWritable()) {
+				uniqueContext.doWrite();
+			}
+			if (key.isValid() && key.isReadable()) {
+				uniqueContext.doRead();
+			}
+		} catch (IOException ioe) {
+			// lambda call in select requires to tunnel IOException
+			logger.info("Closing sc");
+			silentlyClose(key);
+			throw new UncheckedIOException(ioe);
+		}
+	}
 
-    /**
-     * Processes the command from commandQueue
-     */
+	private void silentlyClose(SelectionKey key) {
+		Channel sc = (Channel) key.channel();
+		try {
+			sc.close();
+		} catch (IOException e) {
+			// ignore exception
+		}
+	}
 
-    private void processCommands(){
-        // TODO
-    }
+	public static void main(String[] args) throws NumberFormatException, IOException {
+		if (args.length != 4) {
+			usage();
+			return;
+		}
+		new ClientOS(args[1], Path.of(args[0]), new InetSocketAddress(args[2], Integer.parseInt(args[3]))).launch();
+	}
 
-    public void launch() throws IOException {
-        sc.configureBlocking(false);
-        var key = sc.register(selector, SelectionKey.OP_CONNECT);
-        uniqueContext = new Context(key);
-        key.attach(uniqueContext);
-        sc.connect(serverAddress);
+	private static void usage() {
+		System.out.println("Usage : ClientOS folder login hostname port");
+	}
 
-        console.start();
+	/***
+	 * Theses methods are here to help understanding the behavior of the selector
+	 ***/
 
-        while(!Thread.interrupted()) {
-            try {
-                selector.select(this::treatKey);
-                processCommands();
-            } catch (UncheckedIOException tunneled) {
-                throw tunneled.getCause();
-            }
-        }
-    }
+	private String interestOpsToString(SelectionKey key) {
+		if (!key.isValid()) {
+			return "CANCELLED";
+		}
+		int interestOps = key.interestOps();
+		ArrayList<String> list = new ArrayList<>();
+		if ((interestOps & SelectionKey.OP_ACCEPT) != 0)
+			list.add("OP_ACCEPT");
+		if ((interestOps & SelectionKey.OP_READ) != 0)
+			list.add("OP_READ");
+		if ((interestOps & SelectionKey.OP_WRITE) != 0)
+			list.add("OP_WRITE");
+		return String.join("|", list);
+	}
 
-    private void treatKey(SelectionKey key) {
-        try {
-            if (key.isValid() && key.isConnectable()) {
-                uniqueContext.doConnect();
-            }
-            if (key.isValid() && key.isWritable()) {
-                uniqueContext.doWrite();
-            }
-            if (key.isValid() && key.isReadable()) {
-                uniqueContext.doRead();
-            }
-        } catch(IOException ioe) {
-            // lambda call in select requires to tunnel IOException
-            throw new UncheckedIOException(ioe);
-        }
-    }
+	public void printKeys() {
+		Set<SelectionKey> selectionKeySet = selector.keys();
+		if (selectionKeySet.isEmpty()) {
+			System.out.println("The selector contains no key : this should not happen!");
+			return;
+		}
+		System.out.println("The selector contains:");
+		for (SelectionKey key : selectionKeySet) {
+			SelectableChannel channel = key.channel();
+			if (channel instanceof ServerSocketChannel) {
+				System.out.println("\tKey for ServerSocketChannel : " + interestOpsToString(key));
+			} else {
+				SocketChannel sc = (SocketChannel) channel;
+				System.out.println("\tKey for Client " + remoteAddressToString(sc) + " : " + interestOpsToString(key));
+			}
+		}
+	}
 
+	private String remoteAddressToString(SocketChannel sc) {
+		try {
+			return sc.getRemoteAddress().toString();
+		} catch (IOException e) {
+			return "???";
+		}
+	}
 
-    private void silentlyClose(SelectionKey key) {
-        Channel sc = (Channel) key.channel();
-        try {
-            sc.close();
-        } catch (IOException e) {
-            // ignore exception
-        }
-    }
+	public void printSelectedKey(SelectionKey key) {
+		SelectableChannel channel = key.channel();
+		if (channel instanceof ServerSocketChannel) {
+			System.out.println("\tServerSocketChannel can perform : " + possibleActionsToString(key));
+		} else {
+			SocketChannel sc = (SocketChannel) channel;
+			System.out.println(
+					"\tClient " + remoteAddressToString(sc) + " can perform : " + possibleActionsToString(key));
+		}
+	}
 
+	private String possibleActionsToString(SelectionKey key) {
+		if (!key.isValid()) {
+			return "CANCELLED";
+		}
+		ArrayList<String> list = new ArrayList<>();
+		if (key.isAcceptable())
+			list.add("ACCEPT");
+		if (key.isReadable())
+			list.add("READ");
+		if (key.isWritable())
+			list.add("WRITE");
+		return String.join(" and ", list);
+	}
 
-    public static void main(String[] args) throws NumberFormatException, IOException {
-        if (args.length!=3){
-            usage();
-            return;
-        }
-        new ClientOS(args[0],new InetSocketAddress(args[1],Integer.parseInt(args[2]))).launch();
-    }
-
-    private static void usage(){
-        System.out.println("Usage : ClientOS login hostname port");
-    }
 }

@@ -1,8 +1,8 @@
-package fr.uge.net.tcp.server;
+package fr.uge.net.tcp.reader;
 
 import java.nio.ByteBuffer;
 
-interface Reader<T> {
+public interface Reader<T> {
 
     static enum ProcessStatus {DONE,REFILL,ERROR};
 
