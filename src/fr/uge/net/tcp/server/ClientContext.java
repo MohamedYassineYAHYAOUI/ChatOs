@@ -35,6 +35,7 @@ class ClientContext {
 	final private MessageReader messageReader = new MessageReader();
 	final private IntReader intReader = new IntReader();
 	final private StringReader stringReader = new StringReader();
+	final private PrivateMessageReader pvmessageReader = new PrivateMessageReader();
 	// final private Operation operation;
 
 	private boolean closed = false;
@@ -114,7 +115,15 @@ class ClientContext {
 					receivedCode = false;
         			updateInterestOps();
 				}
-
+				break;
+			case 2:
+				System.out.println("message privée");
+				if(pvmessageReader.process(bbin) == ProcessStatus.DONE) {
+					server.sendPrivateMessage(pvmessageReader.getSenderLogin(), pvmessageReader.getTargetLogin(), pvmessageReader.getMessage(), key);
+        			pvmessageReader.reset();
+        			intReader.reset();
+					receivedCode = false;
+				}
 				break;
 			default:
 				logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
