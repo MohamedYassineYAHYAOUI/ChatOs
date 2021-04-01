@@ -26,7 +26,6 @@ public class IntReader implements Reader<Integer> {
                 bb.limit(internalbb.remaining());
                 internalbb.put(bb);
                 bb.limit(oldLimit);
-
             }
         } finally {
             bb.compact();
