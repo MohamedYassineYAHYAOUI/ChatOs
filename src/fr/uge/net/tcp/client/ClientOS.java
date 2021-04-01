@@ -111,31 +111,27 @@ public class ClientOS {
 
 			if (uniqueContext.isConnected()) {
 				while (!commandQueue.isEmpty()) {
-					Optional<ByteBuffer> pmOptional = Optional.empty();
+					ByteBuffer message = null ;
 					var msg = commandQueue.poll();
-					if (msg.startsWith("/")) {
-						// connexion privée
-					} else if (msg.startsWith("@")) {
-
-						// msg privée
-					    var elem = msg.split(" ")[0];
-					   var targetLogin = elem.substring(1);
-					   pmOptional = clientProcess.privateMessageBuff(msg, targetLogin);
-					   if(pmOptional.isEmpty()) {
-						   continue;
-					   }
-
-					} else {
-						pmOptional = clientProcess.publicMessageBuff(msg);
+					if (msg.startsWith("/")) {// connexion privée
+						
+					} else if (msg.startsWith("@")) {// msg privé
+						var elem = msg.split(" ")[0];
+						var pmOptional = clientProcess.privateMessageBuff(msg, elem.length() > 1 ? elem.substring(1): elem);
 						if (pmOptional.isEmpty()) {
 							continue;
 						}
-					}
-					uniqueContext.queueMessage(pmOptional.get());
+						message = pmOptional.get();
 
-					// bb.putInt(login.length()).put(Context.UTF8.encode(login));
-					// bb.putInt(msg.length()).put(Context.UTF8.encode(msg));
-					// uniqueContext.queueMessage(bb);
+					} else {
+						var pmOptional = clientProcess.publicMessageBuff(msg);
+						if (pmOptional.isEmpty()) {
+							continue;
+						}
+						message = pmOptional.get();
+					}
+					uniqueContext.queueMessage(message);
+
 				}
 			}
 
@@ -161,14 +157,10 @@ public class ClientOS {
 					console.interrupt();
 					return;
 				}
-
 				selector.select(this::treatKey);
-
 				if (uniqueContext.isConnected()) {
-
 					processCommands();
 				}
-
 				System.out.println("Select finished");
 			} catch (UncheckedIOException tunneled) {
 				throw tunneled.getCause();

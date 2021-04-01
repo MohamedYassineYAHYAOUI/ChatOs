@@ -9,10 +9,9 @@ import java.util.logging.Logger;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 
 class ClientProcess {
-	static private int MAX_LOGIN_SIZE = 30;
-	static private int MAX_MSG_SIZE = 1024;
-	static private int MAX_BUFFER_SIZE = (Integer.BYTES*4)+((2*MAX_LOGIN_SIZE+MAX_MSG_SIZE)*Character.BYTES);
-	static private Logger logger = Logger.getLogger(ClientProcess.class.getName());
+	private final int MAX_LOGIN_SIZE = 30;
+	private final int MAX_MSG_SIZE = 1024;
+	private final Logger logger = Logger.getLogger(ClientProcess.class.getName());
 	
 	private final Charset UTF8 = Charset.forName("UTF8");
 	private final String login;
@@ -24,7 +23,7 @@ class ClientProcess {
 	
 	Optional<ByteBuffer> publicMessageBuff(String msg) {
 		if(msg.length() >= MAX_MSG_SIZE) {
-			System.out.println("user message is too long, ignored");
+			logger.info("user message is too long, ignored");
 			return Optional.empty();
 		}
 		var bb = ByteBuffer.allocate((Integer.BYTES*3)+((MAX_LOGIN_SIZE+MAX_MSG_SIZE)*Character.BYTES));
@@ -44,11 +43,11 @@ class ClientProcess {
 	
 	Optional<ByteBuffer> privateMessageBuff(String msg, String loginTarget) {
 		if(msg.length() >= MAX_MSG_SIZE) {
-			System.out.println("user message is too long, ignored");
+			logger.info("user message is too long, ignored");
 			return Optional.empty();
 		}
 		if(loginTarget.isEmpty()) {
-			System.out.println("target login is empty, ignored");
+			logger.info("target login is empty, ignored");
 			return Optional.empty();
 		}
 		var bb = ByteBuffer.allocate((Integer.BYTES*4)+(((MAX_LOGIN_SIZE * 2) + MAX_MSG_SIZE)*Character.BYTES));

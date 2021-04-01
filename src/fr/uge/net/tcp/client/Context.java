@@ -74,7 +74,6 @@ class Context {
 
 		case 3: // msg public ou privée
 			contextProcess.loginMessageProcess(bbin);
-
 			break;
 		default:
 			throw new IllegalArgumentException("invlaid opCode  "+opcode);
