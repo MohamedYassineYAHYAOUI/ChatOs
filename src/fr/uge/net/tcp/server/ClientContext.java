@@ -8,6 +8,7 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
+import java.util.Optional;
 import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;

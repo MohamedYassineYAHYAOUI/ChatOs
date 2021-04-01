@@ -71,7 +71,6 @@ class Context {
 
 			System.out.println("exited");
 			break;
-
 		case 3: // msg public
 			contextProcess.publicMessageProcess(bbin);
 			break;

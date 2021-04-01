@@ -46,6 +46,7 @@ class Server {
 		if(serverOperations.validUser(login, sc)) {
 			var senderContext = (ClientContext) key.attachment();
 			for (var clientKey : selector.keys()) {
+				
 				var context = (ClientContext) clientKey.attachment();
 				if(context != null && !context.equals(senderContext)) {
 					context.queueResponse(new PublicMessageResponse(login, message));
@@ -55,8 +56,6 @@ class Server {
 			logger.log(Level.INFO, "invalide request ignored from "+sc.getRemoteAddress());
 		}
 	}
-	
-	
 	
 
 	private void doAccept(SelectionKey key) throws IOException {

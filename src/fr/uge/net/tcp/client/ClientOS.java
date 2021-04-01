@@ -114,7 +114,7 @@ public class ClientOS {
 					if (msg.startsWith("/")) {
 						// connexion privée
 					} else if (msg.startsWith("@")) {
-						// msg privée
+						msg.split(" ")[0]
 					} else {
 						var pmOptional = clientProcess.publicMessageBuff(msg);
 						if (pmOptional.isEmpty()) {
