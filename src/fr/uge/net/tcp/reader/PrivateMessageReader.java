@@ -3,9 +3,9 @@ package fr.uge.net.tcp.reader;
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
+import fr.uge.net.tcp.reader.Reader.ProcessStatus;
 
-public class MessageReader implements Reader<String> {
-
+public class PrivateMessageReader implements Reader<String> {
 	private enum State {
 		DONE, WAITING, ERROR
 	};
@@ -13,8 +13,10 @@ public class MessageReader implements Reader<String> {
 	private State state = State.WAITING;
 	private final StringReader stringReader = new StringReader();
 	private String message = null;
-	private String login = null;
-	private boolean readLogIn = false;
+	private String senderLogin = null;
+	private String targetLogin = null;
+	private boolean readSenderLogIn = false;
+	private boolean readTargetLogIn = false;
 	private boolean readMsg = false;
 	
 	
@@ -24,17 +26,21 @@ public class MessageReader implements Reader<String> {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-        while(!readLogIn || !readMsg) {
+        while(!readSenderLogIn || !readTargetLogIn || !readMsg) {
         	
     		var srState = stringReader.process(bb);
     		if (srState != ProcessStatus.DONE) {
     			return srState;
     		}
-        	if(!readLogIn) {
-        		readLogIn = true;
-        		login = stringReader.get();
+        	if(!readSenderLogIn) {
+        		readSenderLogIn = true;
+        		senderLogin = stringReader.get();
 
-        	}else {
+        	} else if (!readTargetLogIn) {
+        		readTargetLogIn = true;
+        		targetLogin = stringReader.get();        		
+        	}
+        	else {
         		readMsg = true;
         		message = stringReader.get();
         		stringReader.reset();	
@@ -58,11 +64,18 @@ public class MessageReader implements Reader<String> {
 		return message;
 	}
 	
-	public String getLogin() {
+	public String getSenderLogin() {
 		if(state != State.DONE) {
 			throw new IllegalStateException("Process not done");
 		}
-		return login;
+		return senderLogin;
+	}
+	
+	public String getTargetLogin() {
+		if(state != State.DONE) {
+			throw new IllegalStateException("Process not done");
+		}
+		return targetLogin;
 	}
 	
 	@Override
@@ -70,8 +83,8 @@ public class MessageReader implements Reader<String> {
 		state = State.WAITING;
 		stringReader.reset();
 		message= null;
-		readLogIn = false;
+		readSenderLogIn = false;
+		readTargetLogIn = false;
 		readMsg = false;
 	}
-
 }

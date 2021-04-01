@@ -72,8 +72,8 @@ class Context {
 			System.out.println("exited");
 			break;
 
-		case 3: // msg public
-			contextProcess.publicMessageProcess(bbin);
+		case 3: // msg public ou privée
+			contextProcess.loginMessageProcess(bbin);
 			break;
 		default:
 			throw new IllegalArgumentException("invlaid opCode  "+opcode);

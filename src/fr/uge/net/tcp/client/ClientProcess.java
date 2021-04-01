@@ -42,6 +42,23 @@ class ClientProcess {
 	}
 	
 	
+	Optional<ByteBuffer> privateMessageBuff(String msg, String loginTarget) {
+		if(msg.length() >= MAX_MSG_SIZE) {
+			System.out.println("user message is too long, ignored");
+			return Optional.empty();
+		}
+		if(loginTarget.isEmpty()) {
+			System.out.println("target login is empty, ignored");
+			return Optional.empty();
+		}
+		var bb = ByteBuffer.allocate((Integer.BYTES*4)+(((MAX_LOGIN_SIZE * 2) + MAX_MSG_SIZE)*Character.BYTES));
+		bb.putInt(Codes.PRIVATE_MESSAGE_SENT.getCode());
+		bb.putInt(login.length()).put(UTF8.encode(login));
+		bb.putInt(loginTarget.length()).put(UTF8.encode(loginTarget));
+		bb.putInt(msg.length()).put(UTF8.encode(msg));
+		return Optional.of(bb);
+	}	
+	
 
 
 

@@ -14,6 +14,7 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -110,18 +111,26 @@ public class ClientOS {
 
 			if (uniqueContext.isConnected()) {
 				while (!commandQueue.isEmpty()) {
+					Optional<ByteBuffer> pmOptional = Optional.empty();
 					var msg = commandQueue.poll();
 					if (msg.startsWith("/")) {
 						// connexion privée
 					} else if (msg.startsWith("@")) {
 						// msg privée
+					    var elem = msg.split(" ")[0];
+					   var targetLogin = elem.substring(1);
+					   pmOptional = clientProcess.privateMessageBuff(msg, targetLogin);
+					   if(pmOptional.isEmpty()) {
+						   continue;
+					   }
+					   
 					} else {
-						var pmOptional = clientProcess.publicMessageBuff(msg);
+						pmOptional = clientProcess.publicMessageBuff(msg);
 						if (pmOptional.isEmpty()) {
 							continue;
 						}
-						uniqueContext.queueMessage(pmOptional.get());
 					}
+					uniqueContext.queueMessage(pmOptional.get());
 
 					// bb.putInt(login.length()).put(Context.UTF8.encode(login));
 					// bb.putInt(msg.length()).put(Context.UTF8.encode(msg));

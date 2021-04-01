@@ -16,6 +16,7 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import fr.uge.net.tcp.server.replies.PrivateMessageResponse;
 import fr.uge.net.tcp.server.replies.PublicMessageResponse;
 
 class Server {
@@ -57,6 +58,22 @@ class Server {
 	}
 	
 	
+	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key) throws IOException {
+		var sc =  (SocketChannel) key.channel();
+		
+		if(serverOperations.validUser(senderLogin, sc)) {
+			var senderContext = (ClientContext) key.attachment();
+			for (var clientKey : selector.keys()) {
+				var scContext = (SocketChannel) clientKey.channel();
+				var context = (ClientContext) clientKey.attachment();
+				if(context != null && serverOperations.validUser(targetLogin, scContext)) {
+					context.queueResponse(new PrivateMessageResponse(senderLogin, message));
+				}
+			}
+		}else {
+			logger.log(Level.INFO, "invalide request ignored from "+sc.getRemoteAddress());
+		}		
+	}
 	
 
 	private void doAccept(SelectionKey key) throws IOException {

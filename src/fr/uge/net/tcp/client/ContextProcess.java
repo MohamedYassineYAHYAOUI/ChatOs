@@ -9,6 +9,7 @@ import java.util.logging.Logger;
 
 import fr.uge.net.tcp.reader.IntReader;
 import fr.uge.net.tcp.reader.MessageReader;
+import fr.uge.net.tcp.reader.PrivateMessageReader;
 import fr.uge.net.tcp.reader.StringReader;
 
 class ContextProcess {
@@ -17,6 +18,7 @@ class ContextProcess {
 
 	private final IntReader intReader = new IntReader();
 	private final MessageReader messageReader = new MessageReader();
+	private final PrivateMessageReader pvmessageReader = new PrivateMessageReader();
 	private final StringReader stringReader = new StringReader();
 	private final SocketChannel sc;
 
@@ -26,7 +28,7 @@ class ContextProcess {
 		this.sc = Objects.requireNonNull(sc);
 	}
 
-	void publicMessageProcess(ByteBuffer bbin) {
+	void loginMessageProcess(ByteBuffer bbin) {
 		switch(messageReader.process(bbin)) {
 		case DONE:
 			System.out.println(messageReader.getLogin()+": "+messageReader.getMessage());
@@ -36,7 +38,7 @@ class ContextProcess {
 		case REFILL:
 			return;
 		case ERROR:
-			logger.log(Level.WARNING, "error processing public message from server" );
+			logger.log(Level.WARNING, "error processing message from server" );
 			silentlyClose();
 			return;
 		}
