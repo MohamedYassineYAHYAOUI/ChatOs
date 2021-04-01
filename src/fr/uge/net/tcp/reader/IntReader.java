@@ -26,16 +26,21 @@ public class IntReader implements Reader<Integer> {
                 bb.limit(internalbb.remaining());
                 internalbb.put(bb);
                 bb.limit(oldLimit);
+
             }
         } finally {
             bb.compact();
         }
+        
         if (internalbb.hasRemaining()){
             return ProcessStatus.REFILL;
         }
+        
+        
         state=State.DONE;
         internalbb.flip();
         value=internalbb.getInt();
+
         return ProcessStatus.DONE;
     }
 

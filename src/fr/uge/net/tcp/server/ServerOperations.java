@@ -23,11 +23,7 @@ class ServerOperations {
 
 	Response regesterLogin(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
-		System.out.println("------------");
-		System.out.println("clinet login "+login);
-		for (String  key : clients.keySet()) {
-			System.out.println("login "+ key+" sc"+clients.get(key));
-		}
+
 		if(clients.containsKey(login)) {
 			return new LoginResponse(Codes.LOGIN_REFUSED);
 		}else {

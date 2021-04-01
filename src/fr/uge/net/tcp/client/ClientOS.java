@@ -13,9 +13,7 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.LinkedList;
 import java.util.Objects;
-import java.util.Queue;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -24,8 +22,7 @@ import java.util.logging.Logger;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 
 public class ClientOS {
-	static private int BUFFER_SIZE = 10_000;
-	static private int MAX_LOGIN_SIZE = 30;
+	// static private int MAX_LOGIN_SIZE = 30;
 	static private final Charset UTF8 = Charset.forName("utf8");
 	static private Logger logger = Logger.getLogger(ClientOS.class.getName());
 
@@ -33,35 +30,41 @@ public class ClientOS {
 	private final Selector selector;
 	private final InetSocketAddress serverAddress;
 	private final String login;
-	private String msg;
 	private final Thread console;
 	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
 	private final Path folderPath;
 	private Context uniqueContext;
+	private final ClientProcess clientProcess;
 
 	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
-		Objects.requireNonNull(login);
-		if (login.length() > MAX_LOGIN_SIZE) {
-			throw new IllegalArgumentException("login must be less then " + MAX_LOGIN_SIZE + " characters");
-		}
 		this.folderPath = Objects.requireNonNull(folderPath);
 		this.serverAddress = Objects.requireNonNull(serverAddress);
-		this.login = login;
+		this.login = Objects.requireNonNull(login);
+		this.clientProcess = new ClientProcess(this.login);
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
 		this.console = new Thread(this::consoleRun);
-
 	}
 
 	private void consoleRun() {
-		try {
-			var scan = new Scanner(System.in);
+
+		try (var scan = new Scanner(System.in)) {
+			processConnection();
+
 			while (scan.hasNextLine()) {
 				var msg = scan.nextLine();
-				sendCommand(msg);
+
+				if (!sc.isOpen()) {
+					System.out.println("please retry connecting to the server");
+				} else {
+					sendCommand(msg);
+				}
 			}
+
+			return;
 		} catch (InterruptedException e) {
 			logger.info("Console thread has been interrupted");
+			return;
 		} finally {
 			logger.info("Console thread stopping");
 		}
@@ -80,10 +83,21 @@ public class ClientOS {
 			synchronized (serverAddress) {
 				commandQueue.add(msg);
 			}
-			// selector.wakeup();
+			selector.wakeup();
 		} catch (IllegalStateException e) {
 			logger.warning("queue is full, msg ignored");
 		}
+	}
+
+	private void processConnection() {
+		synchronized (serverAddress) {
+			var Optionalbb = clientProcess.connectionBuffer();
+			if (Optionalbb.isEmpty()) {
+				return;
+			}
+			uniqueContext.queueMessage(Optionalbb.get());
+		}
+		selector.wakeup();
 	}
 
 	/**
@@ -93,12 +107,22 @@ public class ClientOS {
 	private void processCommands() {
 		// intrestOPS
 		synchronized (serverAddress) {
+
 			if (uniqueContext.isConnected()) {
 				while (!commandQueue.isEmpty()) {
 					var msg = commandQueue.poll();
-					// ->analyse de message
+					if (msg.startsWith("/")) {
+						// connexion privée
+					} else if (msg.startsWith("@")) {
+						// msg privée
+					} else {
+						var pmOptional = clientProcess.publicMessageBuff(msg);
+						if (pmOptional.isEmpty()) {
+							continue;
+						}
+						uniqueContext.queueMessage(pmOptional.get());
+					}
 
-					// var bb = ByteBuffer.allocate(BUFFER_SIZE);
 					// bb.putInt(login.length()).put(Context.UTF8.encode(login));
 					// bb.putInt(msg.length()).put(Context.UTF8.encode(msg));
 					// uniqueContext.queueMessage(bb);
@@ -108,16 +132,6 @@ public class ClientOS {
 		}
 	}
 
-	private void processConnection() {
-		var bb = ByteBuffer.allocate(2 * Integer.BYTES + MAX_LOGIN_SIZE * Character.BYTES);
-		bb.putInt(Codes.REQUEST_CONNECTION.getCode());
-		bb.putInt(login.length()).put(UTF8.encode(login));
-		System.out.println("queue message");
-		uniqueContext.queueMessage(bb);
-		// selector.wakeup();
-
-	}
-
 	public void launch() throws IOException {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
@@ -125,19 +139,23 @@ public class ClientOS {
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);
 
-		// processConnection();
-
-		console.start(); // aprés validation de connection
+		console.start();
 
 		while (!Thread.interrupted()) {
 			try {
 				printKeys(); // for debug
 				System.out.println("Starting select");
 
+				if (!sc.isOpen()) {
+					selector.close();
+					console.interrupt();
+					return;
+				}
+
 				selector.select(this::treatKey);
-				if (!uniqueContext.isConnected()) {
-					processConnection();
-				} else {
+
+				if (uniqueContext.isConnected()) {
+
 					processCommands();
 				}
 
@@ -155,6 +173,7 @@ public class ClientOS {
 				uniqueContext.doConnect();
 			}
 			if (key.isValid() && key.isWritable()) {
+
 				uniqueContext.doWrite();
 			}
 			if (key.isValid() && key.isReadable()) {
@@ -180,6 +199,10 @@ public class ClientOS {
 	public static void main(String[] args) throws NumberFormatException, IOException {
 		if (args.length != 4) {
 			usage();
+			return;
+		}
+		if (args[1].length() > 30) {
+			System.out.println("login is too long ");
 			return;
 		}
 		new ClientOS(args[1], Path.of(args[0]), new InetSocketAddress(args[2], Integer.parseInt(args[3]))).launch();

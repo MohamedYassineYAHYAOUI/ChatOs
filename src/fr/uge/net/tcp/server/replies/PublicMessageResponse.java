@@ -15,7 +15,7 @@ public class PublicMessageResponse implements Response {
 
 	@Override
 	public Codes getResponseCode() {
-		return Codes.PUBLIC_MESSAGE;
+		return Codes.PUBLIC_MESSAGE_RECEIVED;
 	}
 
 	@Override
@@ -26,7 +26,7 @@ public class PublicMessageResponse implements Response {
 	@Override
 	public ByteBuffer getResponseBuffer() {
 		var internalBuffer = ByteBuffer.allocate(size());
-		internalBuffer.putInt(Codes.PUBLIC_MESSAGE.getCode());
+		internalBuffer.putInt(Codes.PUBLIC_MESSAGE_RECEIVED.getCode());
 		internalBuffer.putInt(senderLogin.length()).put(UTF8.encode(senderLogin));
 		internalBuffer.putInt(message.length()).put(UTF8.encode(message));
 

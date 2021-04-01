@@ -80,28 +80,38 @@ class ClientContext {
 		if (closed) {
 			return;
 		}
-		System.out.println("test 1");
+		
 		if(!processCode()) {
 			return ;
 		}
 
-		System.out.println("test 2");
 		// TODO changer les int dans les cases en ResponseCode
 		if (receivedCode) {
 			switch (intReader.get()) {
+			
 			case 0:
 				System.out.println("connecting");
-				if (stringReader.process(bbin) == ProcessStatus.DONE) {
+				
+				var processing = stringReader.process(bbin) ;
+				if (processing== ProcessStatus.DONE) {
+					
 					server.registerLogin(stringReader.get(), key);
 					intReader.reset();
 					stringReader.reset();
 					receivedCode = false;
+				}else if (processing == ProcessStatus.REFILL) {
+					//bbin.compact();
+					System.out.println("refill");
 				}
 				break;
-			case 3:
+			case 1:
 				System.out.println("message public");
 				if (messageReader.process(bbin) == ProcessStatus.DONE) {
 					server.broadcast(messageReader.getLogin(), messageReader.getMessage(), key);
+        			messageReader.reset();
+        			intReader.reset();
+					receivedCode = false;
+        			updateInterestOps();
 				}
 
 				break;
@@ -143,8 +153,7 @@ class ClientContext {
 
 	private void updateInterestOps() {
 		int intrestOps = 0;
-		System.out.println("closed "+closed);
-		System.out.println("has remaining "+bbin.hasRemaining());
+
 		if (bbin.hasRemaining() && !closed) {
 			intrestOps |= SelectionKey.OP_READ;
 		}
@@ -152,7 +161,6 @@ class ClientContext {
 			intrestOps |= SelectionKey.OP_WRITE;
 		}
 		if (intrestOps == 0) {
-			System.out.println("intrest ops");
 			silentlyClose();
 		} else {
 			key.interestOps(intrestOps);
@@ -207,7 +215,7 @@ class ClientContext {
 		if (sc.read(bbin) == -1) {
 			closed = true;
 		}
-
+		System.out.println("doRead remaining "+bbin.remaining());
 		processIn();
 		updateInterestOps();
 	}

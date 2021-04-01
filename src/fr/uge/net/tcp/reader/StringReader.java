@@ -21,6 +21,7 @@ public class StringReader implements Reader<String> {
 
     @Override
     public ProcessStatus process(ByteBuffer bb) {
+    
         switch (state) {
             case WAITING_FOR_SIZE:
                 var status = intReader.process(bb);
