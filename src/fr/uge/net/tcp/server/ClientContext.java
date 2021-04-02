@@ -39,7 +39,6 @@ class ClientContext {
 	// final private Operation operation;
 
 	private boolean closed = false;
-	private boolean acceptedAsClient = false;
 	private boolean receivedCode = false;
 
 	ClientContext(Server server, SelectionKey key) {
@@ -61,6 +60,7 @@ class ClientContext {
 			case ERROR:
 				logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
 				silentlyClose();
+				//closed = true;
 				return false;
 			default:
 				return false;
@@ -118,11 +118,14 @@ class ClientContext {
 				break;
 			case 2:
 				System.out.println("message privée");
+
 				if(pvmessageReader.process(bbin) == ProcessStatus.DONE) {
+
 					server.sendPrivateMessage(pvmessageReader.getSenderLogin(), pvmessageReader.getTargetLogin(), pvmessageReader.getMessage(), key);
         			pvmessageReader.reset();
         			intReader.reset();
 					receivedCode = false;
+					updateInterestOps();
 				}
 				break;
 			default:
@@ -171,6 +174,7 @@ class ClientContext {
 			intrestOps |= SelectionKey.OP_WRITE;
 		}
 		if (intrestOps == 0) {
+			server.removeClient(key);
 			silentlyClose();
 		} else {
 			key.interestOps(intrestOps);

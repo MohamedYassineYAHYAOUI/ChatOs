@@ -4,9 +4,9 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class PrivateMessageResponse implements Response {
-	private final String senderLogin;
+	/*private final String senderLogin;
 	private final String message;
-
+	
 	public PrivateMessageResponse(String senderLogin, String message) {
 		this.senderLogin = Objects.requireNonNull(senderLogin);
 		this.message = Objects.requireNonNull(message);
@@ -31,4 +31,5 @@ public class PrivateMessageResponse implements Response {
 
 		return internalBuffer;
 	}
+	*/
 }

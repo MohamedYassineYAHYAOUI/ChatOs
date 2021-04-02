@@ -20,6 +20,7 @@ import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
+import fr.uge.net.tcp.server.replies.MessageResponse;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 
 public class ClientOS {
@@ -35,13 +36,16 @@ public class ClientOS {
 	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
 	private final Path folderPath;
 	private Context uniqueContext;
-	private final ClientProcess clientProcess;
+	// private final ClientProcess clientProcess;
+	private final MessageResponse.Builder packetBuilder;
 
 	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
 		this.folderPath = Objects.requireNonNull(folderPath);
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
-		this.clientProcess = new ClientProcess(this.login);
+		// this.clientProcess = new ClientProcess(this.login);
+		this.packetBuilder = new MessageResponse.Builder();
+
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
 		this.console = new Thread(this::consoleRun);
@@ -92,11 +96,15 @@ public class ClientOS {
 
 	private void processConnection() {
 		synchronized (serverAddress) {
-			var Optionalbb = clientProcess.connectionBuffer();
-			if (Optionalbb.isEmpty()) {
-				return;
-			}
-			uniqueContext.queueMessage(Optionalbb.get());
+
+			packetBuilder.setPacketCode(Codes.REQUEST_CONNECTION).setLogin(login);
+			/*
+			 * var Optionalbb = clientProcess.connectionBuffer(); if (Optionalbb.isEmpty())
+			 * { return; }
+			 */
+			// uniqueContext.queueMessage(Optionalbb.get());
+			uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+
 		}
 		selector.wakeup();
 	}
@@ -107,34 +115,30 @@ public class ClientOS {
 
 	private void processCommands() {
 		// intrestOPS
-		synchronized (serverAddress) {
 
-			if (uniqueContext.isConnected()) {
-				while (!commandQueue.isEmpty()) {
-					ByteBuffer message = null ;
-					var msg = commandQueue.poll();
-					if (msg.startsWith("/")) {// connexion privée
-						
-					} else if (msg.startsWith("@")) {// msg privé
-						var elem = msg.split(" ")[0];
-						var pmOptional = clientProcess.privateMessageBuff(msg, elem.length() > 1 ? elem.substring(1): elem);
-						if (pmOptional.isEmpty()) {
-							continue;
-						}
-						message = pmOptional.get();
+		while (!commandQueue.isEmpty()) {
 
-					} else {
-						var pmOptional = clientProcess.publicMessageBuff(msg);
-						if (pmOptional.isEmpty()) {
-							continue;
-						}
-						message = pmOptional.get();
-					}
-					uniqueContext.queueMessage(message);
+			try {
+
+				// ByteBuffer message = null ;
+				var msg = commandQueue.poll();
+				if (msg.startsWith("/")) {// connexion privée
+
+				} else if (msg.startsWith("@")) {// msg privée
+					var targetLogin= msg.split(" ")[0].substring(1);
+					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
+							.setMessage(msg.substring(targetLogin.length() + 2));
+
+				} else {
+					packetBuilder.setPacketCode(Codes.PUBLIC_MESSAGE_SENT).setLogin(login).setMessage(msg);
 
 				}
+				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+			} catch (StringIndexOutOfBoundsException e) {
+				logger.info("invalide request, ignored");
+			} catch (IllegalArgumentException e) {
+				logger.info(e.getMessage());
 			}
-
 		}
 	}
 
@@ -162,6 +166,7 @@ public class ClientOS {
 					processCommands();
 				}
 				System.out.println("Select finished");
+
 			} catch (UncheckedIOException tunneled) {
 				throw tunneled.getCause();
 			}
@@ -202,11 +207,10 @@ public class ClientOS {
 		if (args.length != 4) {
 			usage();
 			return;
-		}
-		if (args[1].length() > 30) {
-			System.out.println("login is too long ");
-			return;
-		}
+		} /*
+			 * if (args[1].length() > 30) { System.out.println("login is too long ");
+			 * return; }
+			 */
 		new ClientOS(args[1], Path.of(args[0]), new InetSocketAddress(args[2], Integer.parseInt(args[3]))).launch();
 	}
 

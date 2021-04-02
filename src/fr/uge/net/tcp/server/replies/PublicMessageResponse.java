@@ -4,14 +4,14 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class PublicMessageResponse implements Response {
-
+/*
 	private final String senderLogin;
 	private final String message;
 
-	public PublicMessageResponse(String login, String message) {
-		this.senderLogin = Objects.requireNonNull(login);
-		this.message = Objects.requireNonNull(message);
-	}
+//	public PublicMessageResponse(String login, String message) {
+//		this.senderLogin = Objects.requireNonNull(login);
+//		this.message = Objects.requireNonNull(message);
+//	}
 
 	@Override
 	public Codes getResponseCode() {
@@ -32,5 +32,5 @@ public class PublicMessageResponse implements Response {
 
 		return internalBuffer;
 	}
-
+*/
 }

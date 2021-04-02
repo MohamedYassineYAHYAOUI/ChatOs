@@ -20,7 +20,7 @@ class ClientProcess {
 		this.login = Objects.requireNonNull(login);
 	}
 	
-	
+	/*
 	Optional<ByteBuffer> publicMessageBuff(String msg) {
 		if(msg.length() >= MAX_MSG_SIZE) {
 			logger.info("user message is too long, ignored");
@@ -60,6 +60,6 @@ class ClientProcess {
 	
 
 
-
+*/
 
 }

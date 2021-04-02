@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 
 public class MessageResponse implements Response {
-	static class Builder{
+	public static class Builder{
 		private String targetLogin;
 		private String message;
 		private String login;
@@ -12,17 +12,23 @@ public class MessageResponse implements Response {
 		private static int MAX_LOGIN_SIZE = 30;
 		private static int MAX_MSG_SIZE = 1024;
 	
-		Builder setTargetLogin(String targetLogin) {
+		public Builder setTargetLogin(String targetLogin) {
 			Objects.requireNonNull(targetLogin);
+			if(targetLogin.isEmpty() || targetLogin.isBlank() ) {
+				throw new IllegalArgumentException("Target login is invalid");
+			}
 			if(targetLogin.length() >  MAX_LOGIN_SIZE) {
-				throw new IllegalArgumentException("senderLogin too long");
+				throw new IllegalArgumentException("Target login is too long");
 			}
 			this.targetLogin = targetLogin;
 			return this;
 		}
 		
-		Builder setLogin(String login) {
+		public Builder setLogin(String login) {
 			Objects.requireNonNull(login);
+			if(login.isEmpty() || login.isBlank() ) {
+				throw new IllegalArgumentException("login is invalid");
+			}
 			if(login.length() >  MAX_LOGIN_SIZE) {
 				throw new IllegalArgumentException("login too long");
 			}
@@ -30,7 +36,7 @@ public class MessageResponse implements Response {
 			return this;
 		}
 		
-		Builder setMessage(String message) {
+		public Builder setMessage(String message) {
 			Objects.requireNonNull(message);
 			if(message.length() >  MAX_MSG_SIZE) {
 				throw new IllegalArgumentException("message too long");
@@ -39,30 +45,32 @@ public class MessageResponse implements Response {
 			return this;
 		}
 	
-		Builder setPacketCode(Codes messageCode) {
+		public Builder setPacketCode(Codes messageCode) {
 			Objects.requireNonNull(messageCode);
 			this.messageCode = messageCode;
 			return this;
 		}
 	
-		MessageResponse build(){
+		public MessageResponse build(){
 			if(messageCode == null ) {
 				throw new IllegalStateException("packet is missing code");
-			}
-			if(message == null) {
-				throw new IllegalStateException("packet is missing message");
 			}
 			if(login == null) {
 				throw new IllegalStateException("packet is missing login");
 			}
-			if(targetLogin != null) {
-				return new MessageResponse(messageCode, login, targetLogin, message );	
+			MessageResponse messageResponse = null;
+			if(targetLogin != null && message != null) {
+				messageResponse =  new MessageResponse(messageCode, login, targetLogin, message );	
+			}else if( message != null) {
+				messageResponse = new MessageResponse(messageCode, login, message);
 			}else {
-				return new MessageResponse(messageCode, login, message);
+				messageResponse = new MessageResponse(messageCode, login);
 			}
+			resetBuilder();
+			return messageResponse;
 		}
 	
-		void resetBuilder() {
+		private void resetBuilder() {
 			targetLogin = null;
 			message = null;
 			login = null;
@@ -72,21 +80,26 @@ public class MessageResponse implements Response {
 	}
 	private String targetLogin;
 	private final String login;
-	private final String message;
+	private String message;
 	private final Codes messageCode;
 		
+	private MessageResponse(Codes code, String login) {
+		this.login = Objects.requireNonNull(login);
+		this.messageCode = code;
+	}
 	
 	private MessageResponse(Codes code, String login, String message) {
-		this.login = Objects.requireNonNull(login);
+		this(code, login);
 		this.message = Objects.requireNonNull(message);
-		this.messageCode = code;
+		
 	}
 	
 	private MessageResponse(Codes code, String login, String targetLogin, String message) {
 		this(code, login, message);
-		this.targetLogin = Objects.requireNonNull(message);
+		this.targetLogin = Objects.requireNonNull(targetLogin);
 	}
 	
+
 	
 	@Override
 	public Codes getResponseCode() {
@@ -95,7 +108,11 @@ public class MessageResponse implements Response {
 
 	@Override
 	public int size() {
-		var size = 3 * Integer.BYTES + ((message.length() + login.length())* Character.BYTES);
+		var size = 2 * Integer.BYTES + ( login.length()* Character.BYTES);
+		if(message != null) {
+			size +=Integer.BYTES + (message.length()* Character.BYTES);
+		}
+		
 		if(targetLogin != null) {
 			size+= Integer.BYTES + (targetLogin.length() * Character.BYTES);
 		}
@@ -107,11 +124,14 @@ public class MessageResponse implements Response {
 	public ByteBuffer getResponseBuffer() {
 		var internalBuffer = ByteBuffer.allocate(size());
 		internalBuffer.putInt(messageCode.getCode());
+		
 		internalBuffer.putInt(login.length()).put(UTF8.encode(login));
 		if(targetLogin != null) {
 			internalBuffer.putInt(targetLogin.length()).put(UTF8.encode(targetLogin));
 		}
-		internalBuffer.putInt(message.length()).put(UTF8.encode(message));
+		if(message != null) {
+			internalBuffer.putInt(message.length()).put(UTF8.encode(message));
+		}
 
 		return internalBuffer;
 	}

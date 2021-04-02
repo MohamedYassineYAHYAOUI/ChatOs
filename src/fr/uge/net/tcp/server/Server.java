@@ -16,8 +16,9 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.replies.PrivateMessageResponse;
-import fr.uge.net.tcp.server.replies.PublicMessageResponse;
+import fr.uge.net.tcp.server.replies.MessageResponse;
+
+import fr.uge.net.tcp.server.replies.Response.Codes;
 
 class Server {
 
@@ -27,6 +28,7 @@ class Server {
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final ServerOperations serverOperations;
+	private final MessageResponse.Builder Packetbuilder = new MessageResponse.Builder();
 
 	public Server(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
@@ -37,47 +39,54 @@ class Server {
 
 	void registerLogin(String login, SelectionKey key) {
 		var context = (ClientContext) key.attachment();
-		var respond = serverOperations.regesterLogin(login, (SocketChannel)key.channel());
+		var respond = serverOperations.regesterLogin(login, (SocketChannel) key.channel());
 		context.queueResponse(respond);
 	}
-	
-	void broadcast(String login, String message,  SelectionKey key) throws IOException {
-		var sc =  (SocketChannel) key.channel();
-		
-		if(serverOperations.validUser(login, sc)) {
+
+	void broadcast(String login, String message, SelectionKey key) throws IOException {
+		var sc = (SocketChannel) key.channel();
+
+		if (serverOperations.validUser(login, sc)) {
 			var senderContext = (ClientContext) key.attachment();
 			for (var clientKey : selector.keys()) {
-				
 				var context = (ClientContext) clientKey.attachment();
-				if(context != null && !context.equals(senderContext)) {
-					context.queueResponse(new PublicMessageResponse(login, message));
+				if (context != null && !context.equals(senderContext)) {
+					Packetbuilder.setPacketCode(Codes.PUBLIC_MESSAGE_RECEIVED).setLogin(login).setMessage(message);
+					context.queueResponse(Packetbuilder.build());
 				}
 			}
-		}else {
-			logger.log(Level.INFO, "invalide request ignored from "+sc.getRemoteAddress());
+		} else {
+			logger.log(Level.INFO, "invalide request ignored from " + sc.getRemoteAddress());
 		}
 	}
-	
 
+	void removeClient(SelectionKey key) {
+		var sc = (SocketChannel) key.channel();
+		serverOperations.removeClient(sc);
+	}
 
-	
-	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key) throws IOException {
-		var sc =  (SocketChannel) key.channel();
-		
-		if(serverOperations.validUser(senderLogin, sc)) {
-			var senderContext = (ClientContext) key.attachment();
+	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key)
+			throws IOException {
+		var sc = (SocketChannel) key.channel();
+
+		if (serverOperations.validUser(senderLogin, sc)) {
 			for (var clientKey : selector.keys()) {
-				var scContext = (SocketChannel) clientKey.channel();
 				var context = (ClientContext) clientKey.attachment();
-				if(context != null && serverOperations.validUser(targetLogin, scContext)) {
-					context.queueResponse(new PrivateMessageResponse(senderLogin, message));
+				if (context != null) {
+					var scTarget = (SocketChannel) clientKey.channel();
+					if (serverOperations.validUser(targetLogin, scTarget)) {
+
+						Packetbuilder.setPacketCode(Codes.PRIVATE_MESSAGE_RECEIVED).setLogin(senderLogin)
+								.setMessage(message);
+						context.queueResponse(Packetbuilder.build());
+					return;
+					}
 				}
 			}
-		}else {
-			logger.log(Level.INFO, "invalide request ignored from "+sc.getRemoteAddress());
-		}		
+		} else {
+			logger.log(Level.INFO, "invalide request ignored from " + sc.getRemoteAddress());
+		}
 	}
-	
 
 	private void doAccept(SelectionKey key) throws IOException {
 		var ssc = (ServerSocketChannel) key.channel();

@@ -72,7 +72,11 @@ class Context {
 			System.out.println("exited");
 			break;
 
-		case 3: // msg public ou privée
+		case 3: // msg public
+			contextProcess.loginMessageProcess(bbin);
+			
+			break;
+		case 7: // msg privée
 			contextProcess.loginMessageProcess(bbin);
 			break;
 		default:
