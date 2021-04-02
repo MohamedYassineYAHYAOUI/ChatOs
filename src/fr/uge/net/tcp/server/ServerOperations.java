@@ -15,8 +15,8 @@ class ServerOperations {
 	// private final HashMap<String, SocketChannel> clients;
 	private final HashMap<SocketChannel, String> clients;
 
-	ServerOperations(){
-		this.clients = new HashMap<SocketChannel,String >();
+	ServerOperations() {
+		this.clients = new HashMap<SocketChannel, String>();
 	}
 
 	Response regesterLogin(String login, SocketChannel sc) {
@@ -34,17 +34,13 @@ class ServerOperations {
 		Objects.requireNonNull(sc);
 		clients.remove(sc);
 	}
-	
+
 	boolean validUser(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 		Objects.requireNonNull(sc);
 		var clientLogin = clients.get(sc);
-//		try {
-			return clientLogin != null
-					&& login.equals(clientLogin);
-					//&& clientChannel.getRemoteAddress().toString().equals(sc.getRemoteAddress().toString());
-//		} catch (IOException e) {
-//			return false;
-//		}
+
+		return clientLogin != null && login.equals(clientLogin);
+
 	}
 }

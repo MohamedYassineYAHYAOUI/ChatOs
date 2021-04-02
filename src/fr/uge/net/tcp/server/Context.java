@@ -14,16 +14,16 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import fr.uge.net.tcp.reader.*;
+import fr.uge.net.tcp.reader.Process;
 import fr.uge.net.tcp.reader.Reader.ProcessStatus;
 
 import fr.uge.net.tcp.server.replies.Response;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 
-class ClientContext {
+class Context {
 
 	static private final int BUFFER_SIZE = 1_024;
-	// static private final Charset UTF8 = Charset.forName("UTF8");
-	static private final Logger logger = Logger.getLogger(ClientContext.class.getName());
+	static private final Logger logger = Logger.getLogger(Context.class.getName());
 
 	final private SelectionKey key;
 	final private SocketChannel sc;
@@ -32,46 +32,18 @@ class ClientContext {
 
 	final private Queue<Response> queue = new LinkedList<>();
 	final private Server server;
-	final private MessageReader messageReader = new MessageReader();
-	final private IntReader intReader = new IntReader();
-	final private StringReader stringReader = new StringReader();
-	final private PrivateMessageReader pvmessageReader = new PrivateMessageReader();
-	// final private Operation operation;
+	final private Process process ;
+
 
 	private boolean closed = false;
-	private boolean receivedCode = false;
 
-	ClientContext(Server server, SelectionKey key) {
+	Context(Server server, SelectionKey key) {
 
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
 		this.server = server;
+		this.process= new Process();
 	}
-
-	private boolean processCode() throws IOException {
-		
-		if(!receivedCode) {
-			switch (intReader.process(bbin)) {
-			case DONE:
-				receivedCode = true;
-				return true;
-			case REFILL:
-				return false;
-			case ERROR:
-				logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
-				silentlyClose();
-				//closed = true;
-				return false;
-			default:
-				return false;
-			}
-		}
-		return true;
-	}
-
-	
-	
-	
 	
 	
 	
@@ -88,58 +60,55 @@ class ClientContext {
 		if (closed) {
 			return;
 		}
-		
-		if(!processCode()) {
-			return ;
-		}
-
-		// TODO changer les int dans les cases en ResponseCode
-		if (receivedCode) {
-			switch (intReader.get()) {
-			
-			case 0:
-				System.out.println("connecting");
-				
-				var processing = stringReader.process(bbin) ;
-				if (processing== ProcessStatus.DONE) {
-					
-					server.registerLogin(stringReader.get(), key);
-					intReader.reset();
-					stringReader.reset();
-					receivedCode = false;
-				}else if (processing == ProcessStatus.REFILL) {
-					//bbin.compact();
-					System.out.println("refill");
-				}
-				break;
-			case 1:
-				System.out.println("message public");
-				if (messageReader.process(bbin) == ProcessStatus.DONE) {
-					server.broadcast(messageReader.getLogin(), messageReader.getMessage(), key);
-        			messageReader.reset();
-        			
-        			intReader.reset();
-					receivedCode = false;
-        			updateInterestOps();
-				}
-				break;
-			case 2:
-				System.out.println("message privée");
-
-				if(pvmessageReader.process(bbin) == ProcessStatus.DONE) {
-
-					server.sendPrivateMessage(pvmessageReader.getSenderLogin(), pvmessageReader.getTargetLogin(), pvmessageReader.getMessage(), key);
-        			pvmessageReader.reset();
-        			intReader.reset();
-					receivedCode = false;
-					updateInterestOps();
-				}
-				break;
-			default:
-				logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
+		try {
+			if(!process.processCode(bbin)) {
+				return ;
 			}
+			if (process.receivedCode()) {
+				switch (process.getProcessCode()) {
+				
+				case REQUEST_CONNECTION:
+					
+					if(process.processLogin(bbin)) {
+						server.registerLogin(process.getLogin(), key);
+						process.reset();
+					}
+					
+					break;
+				case PUBLIC_MESSAGE_SENT:
+					System.out.println("message public");
+					if(process.processPacket(bbin)) {
+						server.broadcast(process.getLogin(), process.getMessage() , key);
+						process.reset();
+						updateInterestOps();
+					}
+		
+					break;
+				case PRIVATE_MESSAGE_SENT:
+					System.out.println("message privée");
+					if(process.processPrivatePacket(bbin)) {
+						server.sendPrivateMessage(process.getLogin(), process.getTargetLogin(), process.getMessage(), key);
+						process.reset();
+						updateInterestOps();
+					}
 
+					break;
+				default:
+					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
+				}
+
+			}
+		} catch (IllegalArgumentException e) {
+			logger.warning(e.getMessage());
+			process.reset();
+
+		} catch (IllegalStateException e) {
+			process.reset();
+			silentlyClose();
+			closed = true;
+			key.cancel(); 
 		}
+		
 	}
 
 	/**
@@ -243,10 +212,10 @@ class ClientContext {
 
 	@Override
 	public boolean equals(Object obj) {
-		if (!(obj instanceof ClientContext)) {
+		if (!(obj instanceof Context)) {
 			return false;
 		}
-		var context = (ClientContext) obj;
+		var context = (Context) obj;
 		try {
 			return sc.getRemoteAddress().toString().equals(context.sc.getRemoteAddress().toString());
 		} catch (IOException e) {

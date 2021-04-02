@@ -38,7 +38,7 @@ class Server {
 	}
 
 	void registerLogin(String login, SelectionKey key) {
-		var context = (ClientContext) key.attachment();
+		var context = (Context) key.attachment();
 		var respond = serverOperations.regesterLogin(login, (SocketChannel) key.channel());
 		context.queueResponse(respond);
 	}
@@ -47,9 +47,9 @@ class Server {
 		var sc = (SocketChannel) key.channel();
 
 		if (serverOperations.validUser(login, sc)) {
-			var senderContext = (ClientContext) key.attachment();
+			var senderContext = (Context) key.attachment();
 			for (var clientKey : selector.keys()) {
-				var context = (ClientContext) clientKey.attachment();
+				var context = (Context) clientKey.attachment();
 				if (context != null && !context.equals(senderContext)) {
 					Packetbuilder.setPacketCode(Codes.PUBLIC_MESSAGE_RECEIVED).setLogin(login).setMessage(message);
 					context.queueResponse(Packetbuilder.build());
@@ -71,7 +71,7 @@ class Server {
 
 		if (serverOperations.validUser(senderLogin, sc)) {
 			for (var clientKey : selector.keys()) {
-				var context = (ClientContext) clientKey.attachment();
+				var context = (Context) clientKey.attachment();
 				if (context != null) {
 					var scTarget = (SocketChannel) clientKey.channel();
 					if (serverOperations.validUser(targetLogin, scTarget)) {
@@ -95,7 +95,7 @@ class Server {
 		if (sc != null) {
 			sc.configureBlocking(false);
 			var scKey = sc.register(selector, SelectionKey.OP_READ);
-			scKey.attach(new ClientContext(this, scKey));
+			scKey.attach(new Context(this, scKey));
 		}
 	}
 
@@ -126,10 +126,10 @@ class Server {
 		}
 		try {
 			if (key.isValid() && key.isWritable()) {
-				((ClientContext) key.attachment()).doWrite();
+				((Context) key.attachment()).doWrite();
 			}
 			if (key.isValid() && key.isReadable()) {
-				((ClientContext) key.attachment()).doRead();
+				((Context) key.attachment()).doRead();
 			}
 		} catch (IOException e) {
 			logger.log(Level.INFO, "Connection closed with client due to IOException", e);

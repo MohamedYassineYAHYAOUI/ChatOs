@@ -10,7 +10,7 @@ import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-
+import fr.uge.net.tcp.reader.Process;
 
 class Context {
 
@@ -23,9 +23,8 @@ class Context {
 	final private ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
 	final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 	final private Queue<ByteBuffer> queue = new LinkedList<>(); // buffers read-mode
-	// final private MessageReader messageReader = new MessageReader();
 
-	private final ContextProcess contextProcess;
+	private final Process process;
 
 	private boolean closed = false;
 	private boolean isConnected = false;
@@ -33,7 +32,7 @@ class Context {
 	Context(SelectionKey key) {
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
-		this.contextProcess = new ContextProcess(sc);
+		this.process = new Process();
 	}
 
 	/**
@@ -50,34 +49,58 @@ class Context {
 		if (closed) {
 			return;
 		}
-		if (!contextProcess.processCode(bbin)) {
-			return;
+
+		try {
+			if (!process.processCode(bbin)) {
+				return;
+			}
+
+			// traitement
+
+			switch (process.getProcessCode()) {
+			case LOGIN_ACCEPTED:
+				logger.info("connection to server established");
+				isConnected = true;
+				process.reset();
+				break;
+			case LOGIN_REFUSED: 
+				throw new IllegalStateException();
+				
+			case PUBLIC_MESSAGE_RECEIVED:
+				if(process.processPacket(bbin)) {
+					System.out.println(process.getLogin()+": "+process.getMessage());
+					process.reset();
+				}
+
+				break;
+			case PRIVATE_MESSAGE_RECEIVED:
+				if(process.processPacket(bbin)) {
+					System.out.println("private message from "+process.getLogin()+": "+process.getMessage());
+					process.reset();
+				}
+				break;
+			default:
+				throw new IllegalArgumentException("invlaid Code ");
+			}
+		} catch (IllegalArgumentException e) {
+			logger.warning(e.getMessage());
+			process.reset();
+
+		} catch (IllegalStateException e) {
+			process.reset();
+			silentlyClose();
+			closed = true; // ??? a voir
+			key.cancel(); // ??? à voir
 		}
-		// traitement
-		var opcode = contextProcess.getCode();
-		switch (opcode) {
-		case 10: // LOGIN_ACCEPTED
-			System.out.println("conected");
-			isConnected = true;
-			contextProcess.restCode();
-			break;
-		case 11: // LOGIN_REFUSED
-			contextProcess.restCode();
-			closed = true;
-			key.cancel();
 
-			System.out.println("exited");
-			break;
+	}
 
-		case 3: // msg public
-			contextProcess.loginMessageProcess(bbin);
-			
-			break;
-		case 7: // msg privée
-			contextProcess.loginMessageProcess(bbin);
-			break;
-		default:
-			throw new IllegalArgumentException("invlaid opCode  "+opcode);
+	private void silentlyClose() {
+		try {
+			logger.info("Closing Channel");
+			sc.close();
+		} catch (IOException e) {
+			// ignore exception
 		}
 	}
 
@@ -87,11 +110,11 @@ class Context {
 	 * @param bb
 	 */
 	void queueMessage(ByteBuffer bb) {
-    	bb.flip();
-        queue.add(bb);
-        processOut();
-        bb.compact();
-        updateInterestOps();
+		bb.flip();
+		queue.add(bb);
+		processOut();
+		bb.compact();
+		updateInterestOps();
 	}
 
 	/**
@@ -128,7 +151,7 @@ class Context {
 			interesOps |= SelectionKey.OP_WRITE;
 		}
 		if (interesOps == 0) {
-			contextProcess.silentlyClose();
+			silentlyClose();
 			return;
 		}
 		key.interestOps(interesOps);
