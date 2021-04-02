@@ -2,21 +2,15 @@ package fr.uge.net.tcp.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-import java.nio.channels.ClosedChannelException;
-import java.nio.channels.IllegalSelectorException;
+
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
 import java.util.LinkedList;
-import java.util.Optional;
 import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.reader.*;
-import fr.uge.net.tcp.reader.Process;
-import fr.uge.net.tcp.reader.Reader.ProcessStatus;
-
+import fr.uge.net.tcp.process.Process;
 import fr.uge.net.tcp.server.replies.Response;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 

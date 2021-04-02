@@ -7,15 +7,13 @@ import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.util.LinkedList;
 import java.util.Queue;
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.reader.Process;
+import fr.uge.net.tcp.process.Process;
 
 class Context {
 
 	static private final int BUFFER_SIZE = 1_024;
-	private static final Charset UTF8 = Charset.forName("utf8");
 	static private final Logger logger = Logger.getLogger(Context.class.getName());
 
 	final private SelectionKey key;

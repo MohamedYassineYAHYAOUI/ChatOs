@@ -1,4 +1,4 @@
-package fr.uge.net.tcp.reader;
+package fr.uge.net.tcp.process;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -85,10 +85,8 @@ public class Process {
 			case REFILL:
 				return false;
 			case ERROR:
-				// logger.log(Level.WARNING, );
 				throw new IllegalStateException("error processing code for client ");
-			// silentlyClose();
-			// return false;
+
 			default:
 				return false;
 			}

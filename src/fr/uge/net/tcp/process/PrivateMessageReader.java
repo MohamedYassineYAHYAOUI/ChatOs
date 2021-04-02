@@ -1,11 +1,11 @@
-package fr.uge.net.tcp.reader;
+package fr.uge.net.tcp.process;
 
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.reader.Reader.ProcessStatus;
+import fr.uge.net.tcp.process.Reader.ProcessStatus;
 
-public class PrivateMessageReader extends PacketRreader implements Reader<String> {
+class PrivateMessageReader extends CommonMessageReader implements Reader<String> {
 
 	private String targetLogin = null;
 
@@ -13,7 +13,7 @@ public class PrivateMessageReader extends PacketRreader implements Reader<String
 
 
 	@Override
-	public ProcessStatus process(ByteBuffer bb) {
+	 public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
@@ -48,16 +48,16 @@ public class PrivateMessageReader extends PacketRreader implements Reader<String
 		throw new IllegalStateException("use getMessage() or getLogin() or getTargetLogin()");
 	}
 
-	public String getMessage() {
+	 String getMessage() {
 		return super.getMessage();
 	}
 	
 	
-	public String getSenderLogin() {
+	 String getSenderLogin() {
 		return getLogin();
 	}
 	
-	public String getTargetLogin() {
+	 String getTargetLogin() {
 		if(state != State.DONE) {
 			throw new IllegalStateException("Process not done");
 		}

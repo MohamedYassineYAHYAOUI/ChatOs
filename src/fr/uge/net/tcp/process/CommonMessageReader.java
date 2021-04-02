@@ -1,18 +1,15 @@
-package fr.uge.net.tcp.reader;
+package fr.uge.net.tcp.process;
 
-abstract class PacketRreader {
+abstract class CommonMessageReader {
 	enum State {
 		DONE, WAITING, ERROR
 	};
 
 	State state = State.WAITING;
-
 	String message = null;
 	String login = null;
-
 	boolean readLogIn = false;
 	boolean readMsg = false;
-
 	final StringReader stringReader = new StringReader();
 
 	String getMessage() {

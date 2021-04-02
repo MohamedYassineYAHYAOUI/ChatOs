@@ -1,10 +1,10 @@
-package fr.uge.net.tcp.reader;
+package fr.uge.net.tcp.process;
 
 import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 
-public class MessageReader extends PacketRreader implements Reader<String> {
+class MessageReader extends CommonMessageReader implements Reader<String> {
 
 
 	@Override
@@ -39,12 +39,12 @@ public class MessageReader extends PacketRreader implements Reader<String> {
 		throw new IllegalStateException("use getMessage() or getLogin()");
 	}
 	
-	public String getMessage() {
+	String getMessage() {
 		return super.getMessage();
 	}
 	
 
-	public String getLogin() {
+	String getLogin() {
 		return super.getLogin();
 	}
 
