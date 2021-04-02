@@ -52,10 +52,12 @@ class ContextProcess {
 				receivedCode = true;
 				return true;
 			case REFILL:
+				
 				return false;
 			case ERROR:
 				logger.log(Level.WARNING, "error processing code for client " + sc.getRemoteAddress());
 				silentlyClose();
+				restCode();
 				return false;
 			default:
 				return false;

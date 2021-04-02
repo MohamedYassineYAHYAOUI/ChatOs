@@ -53,9 +53,11 @@ public class MessageResponse implements Response {
 	
 		public MessageResponse build(){
 			if(messageCode == null ) {
+				resetBuilder();
 				throw new IllegalStateException("packet is missing code");
 			}
 			if(login == null) {
+				resetBuilder();
 				throw new IllegalStateException("packet is missing login");
 			}
 			MessageResponse messageResponse = null;

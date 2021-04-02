@@ -36,14 +36,12 @@ public class ClientOS {
 	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
 	private final Path folderPath;
 	private Context uniqueContext;
-	// private final ClientProcess clientProcess;
 	private final MessageResponse.Builder packetBuilder;
 
 	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
 		this.folderPath = Objects.requireNonNull(folderPath);
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
-		// this.clientProcess = new ClientProcess(this.login);
 		this.packetBuilder = new MessageResponse.Builder();
 
 		this.sc = SocketChannel.open();
@@ -98,11 +96,6 @@ public class ClientOS {
 		synchronized (serverAddress) {
 
 			packetBuilder.setPacketCode(Codes.REQUEST_CONNECTION).setLogin(login);
-			/*
-			 * var Optionalbb = clientProcess.connectionBuffer(); if (Optionalbb.isEmpty())
-			 * { return; }
-			 */
-			// uniqueContext.queueMessage(Optionalbb.get());
 			uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
 
 		}
@@ -122,16 +115,19 @@ public class ClientOS {
 
 				// ByteBuffer message = null ;
 				var msg = commandQueue.poll();
+				String targetLogin = null;
 				if (msg.startsWith("/")) {// connexion privée
 
 				} else if (msg.startsWith("@")) {// msg privée
-					var targetLogin= msg.split(" ")[0].substring(1);
+					targetLogin = msg.split(" ")[0].substring(1);
 					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
 							.setMessage(msg.substring(targetLogin.length() + 2));
 
 				} else {
 					packetBuilder.setPacketCode(Codes.PUBLIC_MESSAGE_SENT).setLogin(login).setMessage(msg);
-
+				}
+				if(targetLogin != null && targetLogin.equals(login)) {
+					continue;
 				}
 				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
 			} catch (StringIndexOutOfBoundsException e) {

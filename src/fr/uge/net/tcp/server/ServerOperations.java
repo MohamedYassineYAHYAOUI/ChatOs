@@ -7,7 +7,6 @@ import java.util.HashMap;
 import java.util.Objects;
 
 import fr.uge.net.tcp.server.replies.LoginResponse;
-import fr.uge.net.tcp.server.replies.PublicMessageResponse;
 import fr.uge.net.tcp.server.replies.Response;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 
@@ -23,7 +22,7 @@ class ServerOperations {
 	Response regesterLogin(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 
-		if (clients.containsKey(sc)) {
+		if (clients.containsValue(login)) {
 			return new LoginResponse(Codes.LOGIN_REFUSED);
 		} else {
 			clients.put(sc, login);

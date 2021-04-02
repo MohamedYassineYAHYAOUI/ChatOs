@@ -10,10 +10,7 @@ import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.reader.IntReader;
-import fr.uge.net.tcp.reader.StringReader;
-import fr.uge.net.tcp.server.replies.Response;
-import fr.uge.net.tcp.server.replies.Response.*;
+
 
 class Context {
 
