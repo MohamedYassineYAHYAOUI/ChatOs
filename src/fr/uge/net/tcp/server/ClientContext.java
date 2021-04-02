@@ -69,6 +69,12 @@ class ClientContext {
 		return true;
 	}
 
+	
+	
+	
+	
+	
+	
 	/**
 	 * Process the content of bbin
 	 *
@@ -111,6 +117,7 @@ class ClientContext {
 				if (messageReader.process(bbin) == ProcessStatus.DONE) {
 					server.broadcast(messageReader.getLogin(), messageReader.getMessage(), key);
         			messageReader.reset();
+        			
         			intReader.reset();
 					receivedCode = false;
         			updateInterestOps();

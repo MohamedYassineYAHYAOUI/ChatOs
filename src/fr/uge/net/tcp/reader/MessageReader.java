@@ -4,20 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 
-public class MessageReader implements Reader<String> {
+public class MessageReader extends PacketRreader implements Reader<String> {
 
-	private enum State {
-		DONE, WAITING, ERROR
-	};
-	static private Logger logger = Logger.getLogger(MessageReader.class.getName());
-	private State state = State.WAITING;
-	private final StringReader stringReader = new StringReader();
-	private String message = null;
-	private String login = null;
-	private boolean readLogIn = false;
-	private boolean readMsg = false;
-	
-	
 
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
@@ -52,26 +40,18 @@ public class MessageReader implements Reader<String> {
 	}
 	
 	public String getMessage() {
-		if(state != State.DONE) {
-			throw new IllegalStateException("Process not done");
-		}
-		return message;
+		return super.getMessage();
 	}
 	
+
 	public String getLogin() {
-		if(state != State.DONE) {
-			throw new IllegalStateException("Process not done");
-		}
-		return login;
+		return super.getLogin();
 	}
+
 	
 	@Override
 	public void reset() {
-		state = State.WAITING;
-		stringReader.reset();
-		message= null;
-		readLogIn = false;
-		readMsg = false;
+		packetReset();
 	}
 
 }

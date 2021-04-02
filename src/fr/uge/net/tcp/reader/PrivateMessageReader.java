@@ -5,36 +5,27 @@ import java.util.logging.Logger;
 
 import fr.uge.net.tcp.reader.Reader.ProcessStatus;
 
-public class PrivateMessageReader implements Reader<String> {
-	private enum State {
-		DONE, WAITING, ERROR
-	};
-	static private Logger logger = Logger.getLogger(MessageReader.class.getName());
-	private State state = State.WAITING;
-	private final StringReader stringReader = new StringReader();
-	private String message = null;
-	private String senderLogin = null;
+public class PrivateMessageReader extends PacketRreader implements Reader<String> {
+
 	private String targetLogin = null;
-	private boolean readSenderLogIn = false;
+
 	private boolean readTargetLogIn = false;
-	private boolean readMsg = false;
-	
-	
+
 
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-        while(!readSenderLogIn || !readTargetLogIn || !readMsg) {
+        while(!readLogIn || !readTargetLogIn || !readMsg) {
         	
     		var srState = stringReader.process(bb);
     		if (srState != ProcessStatus.DONE) {
     			return srState;
     		}
-        	if(!readSenderLogIn) {
-        		readSenderLogIn = true;
-        		senderLogin = stringReader.get();
+        	if(!readLogIn) {
+        		readLogIn = true;
+        		login = stringReader.get();
 
         	} else if (!readTargetLogIn) {
         		readTargetLogIn = true;
@@ -54,21 +45,16 @@ public class PrivateMessageReader implements Reader<String> {
 
 	@Override
 	public String get() {
-		throw new IllegalStateException("use getMessage() or getLogin()");
+		throw new IllegalStateException("use getMessage() or getLogin() or getTargetLogin()");
+	}
+
+	public String getMessage() {
+		return super.getMessage();
 	}
 	
-	public String getMessage() {
-		if(state != State.DONE) {
-			throw new IllegalStateException("Process not done");
-		}
-		return message;
-	}
 	
 	public String getSenderLogin() {
-		if(state != State.DONE) {
-			throw new IllegalStateException("Process not done");
-		}
-		return senderLogin;
+		return getLogin();
 	}
 	
 	public String getTargetLogin() {
@@ -80,11 +66,7 @@ public class PrivateMessageReader implements Reader<String> {
 	
 	@Override
 	public void reset() {
-		state = State.WAITING;
-		stringReader.reset();
-		message= null;
-		readSenderLogIn = false;
+		packetReset();
 		readTargetLogIn = false;
-		readMsg = false;
 	}
 }
