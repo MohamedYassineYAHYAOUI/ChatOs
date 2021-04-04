@@ -11,7 +11,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-
+import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -30,6 +30,8 @@ class Server {
 	private final ServerOperations serverOperations;
 	private final MessageResponse.Builder Packetbuilder = new MessageResponse.Builder();
 
+	private final Random random = new Random();
+	
 	public Server(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
 		serverSocketChannel.bind(new InetSocketAddress(port));
@@ -43,7 +45,7 @@ class Server {
 		context.queueResponse(respond);
 	}
 
-	void broadcast(String login, String message, SelectionKey key) throws IOException {
+	void broadcast(String login, String message, SelectionKey key) {
 		var sc = (SocketChannel) key.channel();
 
 		if (serverOperations.validUser(login, sc)) {
@@ -56,7 +58,7 @@ class Server {
 				}
 			}
 		} else {
-			logger.log(Level.INFO, "invalide request ignored from " + sc.getRemoteAddress());
+			logger.log(Level.INFO, "ignored invalide request from Client");
 		}
 	}
 
@@ -65,8 +67,80 @@ class Server {
 		serverOperations.removeClient(sc);
 	}
 
+	
+	
+	void redirectPrivateConnexionRequest(String login_requester , String login_target , SelectionKey key, Codes codePacket) {
+		var sc = (SocketChannel) key.channel();
+		
+		
+		
+		if(!serverOperations.validUser(login_requester, sc)) {
+			logger.log(Level.INFO, "ignored invalide request from Client");
+			return;
+		}
+		for(var clientKey: selector.keys()) {
+			var context = (Context) clientKey.attachment();
+			if (context == null) {
+				continue;
+			}
+			var scTarget = (SocketChannel) clientKey.channel();
+			if(serverOperations.validUser(login_target, scTarget)) {
+				Packetbuilder.setPacketCode(codePacket).setLogin(login_requester)
+				.setTargetLogin(login_target); //buffer builder
+
+				
+				var tmp = Packetbuilder.build();
+				
+				context.queueResponse(tmp);
+				return;
+			}
+		}
+	}
+	// login requester titi, target toto
+	//target 
+	void redirectIdPacket(String login_requester , String login_target , SelectionKey key){
+		var target_sc = (SocketChannel) key.channel();
+		var target_context = (Context) key.attachment();
+		System.out.println("redirect login_requester "+login_requester);
+		if(!serverOperations.validUser(login_target, target_sc)) {
+			logger.log(Level.INFO, "ignored invalide request from Client");
+			return;
+		}
+		System.out.println("redirect login_requester "+login_requester);
+		for(var clientKey: selector.keys()) {
+			var sender_Context = (Context) clientKey.attachment();
+			if (sender_Context  == null) {
+				continue;
+			}
+			var sender_sc = (SocketChannel) clientKey.channel();
+			System.out.println("redirect SC "+sender_sc);
+
+			if(serverOperations.validUser(login_requester, sender_sc)) {
+				System.out.println("VALID USER login sender "+login_requester+ " "+sender_sc);
+				
+				var idCode = random.nextLong();
+				
+				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
+				.setTargetLogin(login_target).setId(idCode); // buffer builder
+				target_context.queueResponse(Packetbuilder.build());
+
+				//targetContext.queueResponse(Packetbuilder.build());
+				
+				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
+				.setTargetLogin(login_target).setId(idCode); // buffer builder
+				//senderContext.queueResponse(Packetbuilder.build());
+				sender_Context.queueResponse(Packetbuilder.build());
+
+				return;
+			}
+		}
+		
+		
+	}
+	
+	
 	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key)
-			throws IOException {
+			{
 		var sc = (SocketChannel) key.channel();
 
 		if (serverOperations.validUser(senderLogin, sc)) {
@@ -84,7 +158,7 @@ class Server {
 				}
 			}
 		} else {
-			logger.log(Level.INFO, "invalide request ignored from " + sc.getRemoteAddress());
+			logger.log(Level.INFO, "ignored invalide request from Client");
 		}
 	}
 

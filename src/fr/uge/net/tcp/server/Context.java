@@ -10,7 +10,13 @@ import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import fr.uge.net.tcp.process.GenericValueProcess;
+import fr.uge.net.tcp.process.LoginProcess;
+import fr.uge.net.tcp.process.MessageProcess;
+import fr.uge.net.tcp.process.OpCodeProcess;
 import fr.uge.net.tcp.process.Process;
+import fr.uge.net.tcp.process.ProcessInt;
+import fr.uge.net.tcp.process.StringReader;
 import fr.uge.net.tcp.server.replies.Response;
 import fr.uge.net.tcp.server.replies.Response.Codes;
 
@@ -27,6 +33,9 @@ class Context {
 	final private Queue<Response> queue = new LinkedList<>();
 	final private Server server;
 	final private Process process ;
+	private final OpCodeProcess codeProcess = new OpCodeProcess();
+	private ProcessInt processInt;
+	private boolean doneProcessing = true;
 
 
 	private boolean closed = false;
@@ -55,14 +64,64 @@ class Context {
 			return;
 		}
 		try {
-			if(!process.processCode(bbin)) {
+			
+			//System.out.println("pricess code "+bbin.position());
+			/*if(!process.processCode(bbin)) {
 				return ;
+			}*/
+			
+			
+			if(!codeProcess.process(bbin)) {
+				return;
 			}
+			
+			if(codeProcess.receivedCode() && doneProcessing) {
+				switch(codeProcess.getProcessCode()) {
+				case REQUEST_SERVER_CONNECTION:
+					processInt = new LoginProcess(codeProcess,  login->server.registerLogin(login, key));
+					break;
+				case PUBLIC_MESSAGE_SENT:
+					processInt = new MessageProcess(codeProcess, (login, msg)->server.broadcast(login, msg , key));
+					break;
+					
+				case PRIVATE_MESSAGE_SENT:
+					processInt = new GenericValueProcess<>(codeProcess, new StringReader(), 
+							(login, target, msg)-> server.sendPrivateMessage(login, target, msg, key) );
+					break;
+				case REQUEST_PRIVATE_CONNEXION:
+					processInt = new MessageProcess(codeProcess, 
+							(login, target)-> server.redirectPrivateConnexionRequest(login, target , key, Codes.REQUEST_PRIVATE_CONNEXION));
+					break;
+				case REFUSE_PRIVATE_CONNEXION:
+					processInt = new MessageProcess(codeProcess, 
+							(login, target)-> server.redirectPrivateConnexionRequest(login, target, key, Codes.REFUSE_PRIVATE_CONNEXION));
+					break;
+					
+				case ACCEPT_PRIVATE_CONNEXION:
+					processInt = new MessageProcess(codeProcess, 
+							(login, target)->server.redirectIdPacket(login, target, key));
+					break;
+				
+				default:
+					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
+				}
+				
+			}
+			
+			if(doneProcessing = processInt.executeProcess(bbin)) {
+				updateInterestOps();
+			}
+
+			
+			
+			
+			/*
+			
+			System.out.println("after pricess code "+bbin.position());
 			if (process.receivedCode()) {
 				switch (process.getProcessCode()) {
 				
-				case REQUEST_CONNECTION:
-					
+				case REQUEST_SERVER_CONNECTION:
 					if(process.processLogin(bbin)) {
 						server.registerLogin(process.getLogin(), key);
 						process.reset();
@@ -70,7 +129,6 @@ class Context {
 					
 					break;
 				case PUBLIC_MESSAGE_SENT:
-					System.out.println("message public");
 					if(process.processPacket(bbin)) {
 						server.broadcast(process.getLogin(), process.getMessage() , key);
 						process.reset();
@@ -79,24 +137,54 @@ class Context {
 		
 					break;
 				case PRIVATE_MESSAGE_SENT:
-					System.out.println("message privée");
 					if(process.processPrivatePacket(bbin)) {
 						server.sendPrivateMessage(process.getLogin(), process.getTargetLogin(), process.getMessage(), key);
 						process.reset();
 						updateInterestOps();
 					}
-
+					break;
+					
+				case REQUEST_PRIVATE_CONNEXION:
+					
+					System.out.println(bbin.position());
+					System.out.println("in process");
+					if(process.processPrivateConnextion(bbin)) {
+						System.out.println("in redirect");
+						server.redirectPrivateConnexionRequest(process.getLogin(), process.getTargetLogin(), key, Codes.REQUEST_PRIVATE_CONNEXION);
+						process.reset();
+						updateInterestOps();
+					}
+					break;
+					
+				case REFUSE_PRIVATE_CONNEXION:
+					if(process.processPrivateConnextion(bbin)) {
+						server.redirectPrivateConnexionRequest(process.getLogin(), process.getTargetLogin(), key, Codes.REFUSE_PRIVATE_CONNEXION);
+						process.reset();	
+						updateInterestOps();
+					}
+					break;
+					
+				case ACCEPT_PRIVATE_CONNEXION:
+					if(process.processPrivateConnextion(bbin)) {
+						System.out.println("SERVER ACCEPTED middle");
+						server.redirectIdPacket(process.getLogin(), process.getTargetLogin(), key);
+						System.out.println("SERVER ACCEPTED after");
+						process.reset();	
+						updateInterestOps();
+					}
+					
 					break;
 				default:
 					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
 				}
-
 			}
+				*/
 		} catch (IllegalArgumentException e) {
 			logger.warning(e.getMessage());
 			process.reset();
 
-		} catch (IllegalStateException e) {
+		} catch (IllegalStateException  | IOException  e) {
+			logger.warning(e.getMessage());
 			process.reset();
 			silentlyClose();
 			closed = true;

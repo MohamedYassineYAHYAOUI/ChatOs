@@ -1,16 +1,23 @@
 package fr.uge.net.tcp.process;
 
 import java.nio.ByteBuffer;
-import java.util.logging.Logger;
+import java.util.Objects;
 
-import fr.uge.net.tcp.process.Reader.ProcessStatus;
-
-class PrivateMessageReader extends CommonMessageReader implements Reader<String> {
+/***
+ * Object that reads a buffer with the format :
+ * String - String - T
+ * @param <T> type of the value (or the message) sent in this buffer
+ */
+class PrivateMessageReader<T> extends CommonMessageReader<T> implements Reader<String> {
 
 	private String targetLogin = null;
 
 	private boolean readTargetLogIn = false;
-
+	private final Reader<T> elemReader; 
+	PrivateMessageReader(Reader<T> elemReader){
+		this.elemReader = Objects.requireNonNull(elemReader);
+	}
+	
 
 	@Override
 	 public ProcessStatus process(ByteBuffer bb) {
@@ -19,7 +26,13 @@ class PrivateMessageReader extends CommonMessageReader implements Reader<String>
 		}
         while(!readLogIn || !readTargetLogIn || !readMsg) {
         	
-    		var srState = stringReader.process(bb);
+        	ProcessStatus srState ;
+        	if(!readLogIn || !readTargetLogIn  ) {
+        		srState= stringReader.process(bb);
+        	}else {
+        		srState= elemReader.process(bb);
+        	}
+        	
     		if (srState != ProcessStatus.DONE) {
     			return srState;
     		}
@@ -29,15 +42,15 @@ class PrivateMessageReader extends CommonMessageReader implements Reader<String>
 
         	} else if (!readTargetLogIn) {
         		readTargetLogIn = true;
-        		targetLogin = stringReader.get();        		
+        		targetLogin = stringReader.get();  
+        		stringReader.reset();	
         	}
         	else {
         		readMsg = true;
-        		message = stringReader.get();
-        		stringReader.reset();	
+        		message = elemReader.get();
         	}
     		stringReader.reset();
-        	
+    		elemReader.reset();
         }
         state=State.DONE;
         return ProcessStatus.DONE;
@@ -48,7 +61,7 @@ class PrivateMessageReader extends CommonMessageReader implements Reader<String>
 		throw new IllegalStateException("use getMessage() or getLogin() or getTargetLogin()");
 	}
 
-	 String getMessage() {
+	 T getMessage() {
 		return super.getMessage();
 	}
 	
@@ -67,6 +80,7 @@ class PrivateMessageReader extends CommonMessageReader implements Reader<String>
 	@Override
 	public void reset() {
 		packetReset();
+		elemReader.reset();
 		readTargetLogIn = false;
 	}
 }

@@ -4,18 +4,23 @@ import java.nio.ByteBuffer;
 
 public interface ProcessInt {
 	
-	boolean receivedCode = false;
-	default boolean receivedCode() {
+	//boolean receivedCode = false;
+	/*default boolean receivedCode() {
 		return receivedCode;
-	}
+	}*/
 	
-	boolean process(ByteBuffer bbin);
+
 	
 	String getLogin();
 	
 	String getMessage();
 	
+	long getId();
+	
 	String getTargetLogin();
 	
 	void reset();
+
+	boolean executeProcess(ByteBuffer bbin);
+
 }

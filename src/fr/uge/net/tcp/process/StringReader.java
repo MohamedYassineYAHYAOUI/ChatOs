@@ -7,7 +7,7 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.logging.Logger;
 
-class StringReader implements Reader<String> {
+public class StringReader implements Reader<String> {
     private enum State {DONE, WAITING_FOR_SIZE, WAITING_FOR_CONTENT, ERROR};
 	static private Logger logger = Logger.getLogger(StringReader.class.getName());
     private final int MAX_SIZE = 1_024;
@@ -43,6 +43,8 @@ class StringReader implements Reader<String> {
                 		missing--;
                 	}
                 }catch(BufferUnderflowException e){
+                	
+                	System.out.println("STRING READER " +e.getMessage());
                 	return ProcessStatus.REFILL;
                 }finally {
                 	bb.compact();

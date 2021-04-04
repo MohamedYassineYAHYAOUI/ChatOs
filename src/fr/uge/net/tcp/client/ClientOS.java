@@ -14,7 +14,6 @@ import java.nio.charset.Charset;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Objects;
-import java.util.Optional;
 import java.util.Scanner;
 import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -56,7 +55,6 @@ public class ClientOS {
 
 			while (scan.hasNextLine()) {
 				var msg = scan.nextLine();
-
 				if (!sc.isOpen()) {
 					System.out.println("please retry connecting to the server");
 				} else {
@@ -84,7 +82,9 @@ public class ClientOS {
 		Objects.requireNonNull(msg);
 		try {
 			synchronized (serverAddress) {
-				commandQueue.add(msg);
+				if (!msg.isEmpty() && !msg.isBlank()) {
+					commandQueue.add(msg);
+				}
 			}
 			selector.wakeup();
 		} catch (IllegalStateException e) {
@@ -95,11 +95,39 @@ public class ClientOS {
 	private void processConnection() {
 		synchronized (serverAddress) {
 
-			packetBuilder.setPacketCode(Codes.REQUEST_CONNECTION).setLogin(login);
+			packetBuilder.setPacketCode(Codes.REQUEST_SERVER_CONNECTION).setLogin(login);
 			uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
 
 		}
 		selector.wakeup();
+	}
+
+	void requestPrivateConnection(String login_requester, String login_target) {
+		if (!login_target.equals(login)) {
+			return;
+		}
+		System.out.print("private connexion request form " + login_requester + ": Accept(Y) or refuse(N)\n>");
+		while (true) {
+			if (!commandQueue.isEmpty()) {
+				var response = commandQueue.poll();
+				if (response.toUpperCase().equals("Y")) {
+					System.out.println("ACCEPTED");
+					packetBuilder.setPacketCode(Codes.ACCEPT_PRIVATE_CONNEXION).setLogin(login_requester)
+							.setTargetLogin(login_target);
+				} else if (response.toUpperCase().equals("N")) {
+					System.out.println("REFUSED");
+					packetBuilder.setPacketCode(Codes.REFUSE_PRIVATE_CONNEXION).setLogin(login_requester)
+							.setTargetLogin(login_target);
+				} else {
+					System.out.print("private connexion request form " + login_requester + ": Accept(Y) or refuse(N)\n>");
+					continue;
+				}
+				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+				return;
+			}
+
+		}
+
 	}
 
 	/**
@@ -116,20 +144,40 @@ public class ClientOS {
 				// ByteBuffer message = null ;
 				var msg = commandQueue.poll();
 				String targetLogin = null;
-				if (msg.startsWith("/")) {// connexion privée
 
-				} else if (msg.startsWith("@")) {// msg privée
+				if (msg.startsWith("/")) {// connexion privée /login_target file
+					targetLogin = msg.split(" ")[0].substring(1); // target Login
+
+					if (!uniqueContext.hasPrivateConnexion(targetLogin)) { // vérifier si une connexion exite déjà
+
+						packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
+								.setTargetLogin(targetLogin); // buffer builder
+
+					} else {
+						// LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG)
+						System.out.println("NO CONNECTION ESTABLISHED");
+					}
+
+				} else if (msg.startsWith("@")) {// message privée
 					targetLogin = msg.split(" ")[0].substring(1);
 					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
-							.setMessage(msg.substring(targetLogin.length() + 2));
+							.setMessage(msg.substring(targetLogin.length() + 2)); // buffer builder
+				} else { // message public
 
-				} else {
 					packetBuilder.setPacketCode(Codes.PUBLIC_MESSAGE_SENT).setLogin(login).setMessage(msg);
 				}
-				if(targetLogin != null && targetLogin.equals(login)) {
+				if (targetLogin != null && targetLogin.equals(login)) {
 					continue;
 				}
-				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+
+				var tmp = packetBuilder.build();
+
+				System.out.println("tmp size " + tmp.size());
+				var buff = tmp.getResponseBuffer();
+				System.out.println("buff size " + buff.position());
+
+				uniqueContext.queueMessage(buff);
+
 			} catch (StringIndexOutOfBoundsException e) {
 				logger.info("invalide request, ignored");
 			} catch (IllegalArgumentException e) {
@@ -141,7 +189,7 @@ public class ClientOS {
 	public void launch() throws IOException {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
-		uniqueContext = new Context(key);
+		uniqueContext = new Context(key, login, this);
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);
 

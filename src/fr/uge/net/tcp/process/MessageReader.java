@@ -4,8 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.logging.Logger;
 
 
-class MessageReader extends CommonMessageReader implements Reader<String> {
-
+class MessageReader extends CommonMessageReader<String> implements Reader<String> {
+	//string - stirng
 
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {

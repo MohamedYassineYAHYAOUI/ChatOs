@@ -1,18 +1,19 @@
 package fr.uge.net.tcp.process;
 
-abstract class CommonMessageReader {
+abstract class CommonMessageReader<T> {
 	enum State {
 		DONE, WAITING, ERROR
 	};
 
 	State state = State.WAITING;
-	String message = null;
+	T message = null;
 	String login = null;
 	boolean readLogIn = false;
 	boolean readMsg = false;
-	final StringReader stringReader = new StringReader();
+	
+	final StringReader stringReader = new StringReader(); 
 
-	String getMessage() {
+	T getMessage() {
 		if (state != State.DONE) {
 			throw new IllegalStateException("Process not done");
 		}

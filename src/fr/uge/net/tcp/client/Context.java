@@ -4,12 +4,22 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.Queue;
+import java.util.Scanner;
 import java.util.logging.Logger;
 
+import fr.uge.net.tcp.process.GenericValueProcess;
+import fr.uge.net.tcp.process.LongReader;
+import fr.uge.net.tcp.process.MessageProcess;
+import fr.uge.net.tcp.process.OpCodeProcess;
 import fr.uge.net.tcp.process.Process;
+import fr.uge.net.tcp.process.ProcessInt;
+import fr.uge.net.tcp.server.replies.MessageResponse;
+import fr.uge.net.tcp.server.replies.Response.Codes;
 
 class Context {
 
@@ -21,16 +31,26 @@ class Context {
 	final private ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
 	final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 	final private Queue<ByteBuffer> queue = new LinkedList<>(); // buffers read-mode
+	final private HashMap<String, Long> clientsWithPrivateConnexion = new HashMap<>();
 
 	private final Process process;
+	private final OpCodeProcess codeProcess = new OpCodeProcess();
+	private ProcessInt processInt;
+	private boolean doneProcessing = true;
+
+	private final ClientOS clientOs;
+
+	private final String login;
 
 	private boolean closed = false;
 	private boolean isConnected = false;
 
-	Context(SelectionKey key) {
+	Context(SelectionKey key, String login, ClientOS clientOs) {
+		this.login = Objects.requireNonNull(login);
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
 		this.process = new Process();
+		this.clientOs = clientOs;
 	}
 
 	/**
@@ -49,10 +69,56 @@ class Context {
 		}
 
 		try {
-			if (!process.processCode(bbin)) {
+
+			if (!codeProcess.process(bbin)) {
 				return;
 			}
+			/*
+			 * if (!process.processCode(bbin)) { return; }
+			 */
+			if (codeProcess.receivedCode() && doneProcessing) {
+				switch (codeProcess.getProcessCode()) {
+				case LOGIN_ACCEPTED:
+					logger.info("connection to server established");
+					isConnected = true;
+					codeProcess.reset();
+					return;
+				case LOGIN_REFUSED:
+					throw new IllegalStateException();
+				case PUBLIC_MESSAGE_RECEIVED:
+					processInt = new MessageProcess(codeProcess,
+							(login, msg) -> System.out.println(login + ": " + msg));
+					break;
+				case PRIVATE_MESSAGE_RECEIVED:
+					processInt = new MessageProcess(codeProcess,
+							(login, msg) -> System.out.println("private message from " + login + ": " + msg));
+					break;
+				case REQUEST_PRIVATE_CONNEXION:
+					processInt = new MessageProcess(codeProcess,
+							(login, target) -> clientOs.requestPrivateConnection(login, target));
+					break;
+				case REFUSE_PRIVATE_CONNEXION:
+					processInt = new MessageProcess(codeProcess, (requester, target) -> {
+						if (!requester.equals(this.login)) {
+							return;
+						}
+						System.out.println("private connexion request refused from " + target);
+					});
+					break;
+				case ID_PRIVATE:
+					processInt = new GenericValueProcess<>(codeProcess,
+							new LongReader(), (requester, target, id)->	
+					System.out.println("login " + requester + " login_target " + target + " connect id " + id));
 
+					break;
+				default:
+					throw new IllegalArgumentException("invalid Code ");
+				}
+				
+				doneProcessing = processInt.executeProcess(bbin);
+				
+			}
+/*
 			// traitement
 
 			switch (process.getProcessCode()) {
@@ -61,25 +127,57 @@ class Context {
 				isConnected = true;
 				process.reset();
 				break;
-			case LOGIN_REFUSED: 
+			case LOGIN_REFUSED:
 				throw new IllegalStateException();
-				
+
 			case PUBLIC_MESSAGE_RECEIVED:
-				if(process.processPacket(bbin)) {
-					System.out.println(process.getLogin()+": "+process.getMessage());
+				if (process.processPacket(bbin)) {
+					System.out.println(process.getLogin() + ": " + process.getMessage());
 					process.reset();
 				}
 
 				break;
 			case PRIVATE_MESSAGE_RECEIVED:
-				if(process.processPacket(bbin)) {
-					System.out.println("private message from "+process.getLogin()+": "+process.getMessage());
+				if (process.processPacket(bbin)) {
+					System.out.println("private message from " + process.getLogin() + ": " + process.getMessage());
+					process.reset();
+				}
+				break;
+			case REQUEST_PRIVATE_CONNEXION:
+				if (process.processPrivateConnextion(bbin)) {
+					clientOs.requestPrivateConnection(process.getLogin(), process.getTargetLogin());
+					process.reset();
+				}
+				break;
+
+			case REFUSE_PRIVATE_CONNEXION:
+				if (process.processPrivateConnextion(bbin)) {
+					var login_requester = process.getLogin();
+					var login_target = process.getTargetLogin();
+					if (!login_target.equals(login)) {
+						return;
+					}
+					System.out.println("private connexion request refused from " + login_requester);
+					process.reset();
+				}
+				break;
+			case ID_PRIVATE:
+				System.out.println("CLIENT ACCEPTED before");
+				if (process.processIdPrivate(bbin)) {
+					System.out.println("CLIENT ACCEPTED middle");
+
+					var login_requester = process.getLogin();
+					var login_target = process.getTargetLogin();
+					var connect_id = process.getMessage();
+					// clientOs -> LOGIN_PRIVATE(9)
+					System.out.println(
+							"login " + login_requester + " login_target " + login_target + " connect id " + connect_id);
 					process.reset();
 				}
 				break;
 			default:
-				throw new IllegalArgumentException("invlaid Code ");
-			}
+				throw new IllegalArgumentException("invalid Code ");
+			}*/
 		} catch (IllegalArgumentException e) {
 			logger.warning(e.getMessage());
 			process.reset();
@@ -87,10 +185,24 @@ class Context {
 		} catch (IllegalStateException e) {
 			process.reset();
 			silentlyClose();
-			closed = true; // ??? a voir
-			key.cancel(); // ??? à voir
+			closed = true;
+			key.cancel();
 		}
 
+	}
+
+	void addPrivateConnexion(String login, Long connect_id) {
+		Objects.requireNonNull(login);
+		if (!clientsWithPrivateConnexion.containsKey(login)) {
+			clientsWithPrivateConnexion.put(login, connect_id);
+		}
+		throw new IllegalStateException("connexion already established");
+
+	}
+
+	boolean hasPrivateConnexion(String targetClientLogin) {
+		Objects.requireNonNull(targetClientLogin);
+		return clientsWithPrivateConnexion.containsKey(targetClientLogin);
 	}
 
 	private void silentlyClose() {
