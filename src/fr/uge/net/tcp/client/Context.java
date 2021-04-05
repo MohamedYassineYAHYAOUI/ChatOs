@@ -31,8 +31,12 @@ class Context {
 	final private ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
 	final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 	final private Queue<ByteBuffer> queue = new LinkedList<>(); // buffers read-mode
-	final private HashMap<String, Long> clientsWithPrivateConnexion = new HashMap<>();
-
+	final private PrivateConnectionTraitement pcTraitaitement;
+	
+	//final private HashMap<String, Long> clientsWithPrivateConnexion = new HashMap<>();
+	//hashmap <String , simpleEntry<Long, SC > >
+	
+	
 	private final Process process;
 	private final OpCodeProcess codeProcess = new OpCodeProcess();
 	private ProcessInt processInt;
@@ -45,12 +49,13 @@ class Context {
 	private boolean closed = false;
 	private boolean isConnected = false;
 
-	Context(SelectionKey key, String login, ClientOS clientOs) {
+	Context(SelectionKey key, String login, ClientOS clientOs, PrivateConnectionTraitement pcTraitaitement) {
 		this.login = Objects.requireNonNull(login);
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
 		this.process = new Process();
 		this.clientOs = clientOs;
+		this.pcTraitaitement = Objects.requireNonNull(pcTraitaitement);
 	}
 
 	/**
@@ -102,12 +107,23 @@ class Context {
 						if (!requester.equals(this.login)) {
 							return;
 						}
+						
+						//historique[targetlogin] = true
+						//notifyAll
 						System.out.println("private connexion request refused from " + target);
 					});
 					break;
 				case ID_PRIVATE:
 					processInt = new GenericValueProcess<>(codeProcess,
 							new LongReader(), (requester, target, id)->	
+
+					//synchronized 	
+						//création de SC ////clientsWithPrivateConnexion.put(key, value)
+						//historique[targetlogin] = true
+					//notifyAll
+					
+					
+					
 					System.out.println("login " + requester + " login_target " + target + " connect id " + id));
 
 					break;
@@ -191,19 +207,7 @@ class Context {
 
 	}
 
-	void addPrivateConnexion(String login, Long connect_id) {
-		Objects.requireNonNull(login);
-		if (!clientsWithPrivateConnexion.containsKey(login)) {
-			clientsWithPrivateConnexion.put(login, connect_id);
-		}
-		throw new IllegalStateException("connexion already established");
 
-	}
-
-	boolean hasPrivateConnexion(String targetClientLogin) {
-		Objects.requireNonNull(targetClientLogin);
-		return clientsWithPrivateConnexion.containsKey(targetClientLogin);
-	}
 
 	private void silentlyClose() {
 		try {

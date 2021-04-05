@@ -36,12 +36,15 @@ public class ClientOS {
 	private final Path folderPath;
 	private Context uniqueContext;
 	private final MessageResponse.Builder packetBuilder;
+	private PrivateConnectionTraitement privateConnections ;
+	
 
 	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
 		this.folderPath = Objects.requireNonNull(folderPath);
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
 		this.packetBuilder = new MessageResponse.Builder();
+		
 
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
@@ -147,14 +150,36 @@ public class ClientOS {
 
 				if (msg.startsWith("/")) {// connexion privée /login_target file
 					targetLogin = msg.split(" ")[0].substring(1); // target Login
+					var message = msg.substring(targetLogin.length()) + 2;
 
-					if (!uniqueContext.hasPrivateConnexion(targetLogin)) { // vérifier si une connexion exite déjà
-
-						packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
-								.setTargetLogin(targetLogin); // buffer builder
-
+					// thread action
+						// 
+					
+					
+					
+					// targetLogin  , boolean : historique
+					privateConnections.sendMessageViaPrivateConnection(login, targetLogin, message);
+					continue ;
+					if (!uniqueContext.hasPrivateConnexion(targetLogin)){ // vérifier si une connexion exite déjà
+						
+						// if( historique[targetLogin] n'existe pas) 
+							//envoie REQUEST_PRIVATE_CONNEXION
+						
+							packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
+									.setTargetLogin(targetLogin); // buffer builder
+							
+							
+						// historique . add(targetLogin , false
+						// while (historique[targetLogin] == false) n'est pas encore traité 
+							// ----- wait
+						
+						//si historique[targetLogin] false -> message : connexion réfusé 
+						//sinon // LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)  
+							// write()
+							// read()
+						
 					} else {
-						// LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG)
+						// LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)
 						System.out.println("NO CONNECTION ESTABLISHED");
 					}
 
@@ -170,13 +195,7 @@ public class ClientOS {
 					continue;
 				}
 
-				var tmp = packetBuilder.build();
-
-				System.out.println("tmp size " + tmp.size());
-				var buff = tmp.getResponseBuffer();
-				System.out.println("buff size " + buff.position());
-
-				uniqueContext.queueMessage(buff);
+				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
 
 			} catch (StringIndexOutOfBoundsException e) {
 				logger.info("invalide request, ignored");
@@ -190,6 +209,9 @@ public class ClientOS {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
 		uniqueContext = new Context(key, login, this);
+		privateConnections =  new PrivateConnectionTraitement(serverAddress, buff->uniqueContext.queueMessage(buff));
+		//privateConnections =
+		
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);
 

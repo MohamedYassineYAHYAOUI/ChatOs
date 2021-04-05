@@ -96,39 +96,32 @@ class Server {
 			}
 		}
 	}
-	// login requester titi, target toto
-	//target 
+
 	void redirectIdPacket(String login_requester , String login_target , SelectionKey key){
 		var target_sc = (SocketChannel) key.channel();
 		var target_context = (Context) key.attachment();
-		System.out.println("redirect login_requester "+login_requester);
 		if(!serverOperations.validUser(login_target, target_sc)) {
 			logger.log(Level.INFO, "ignored invalide request from Client");
 			return;
 		}
-		System.out.println("redirect login_requester "+login_requester);
 		for(var clientKey: selector.keys()) {
 			var sender_Context = (Context) clientKey.attachment();
 			if (sender_Context  == null) {
 				continue;
 			}
 			var sender_sc = (SocketChannel) clientKey.channel();
-			System.out.println("redirect SC "+sender_sc);
 
 			if(serverOperations.validUser(login_requester, sender_sc)) {
-				System.out.println("VALID USER login sender "+login_requester+ " "+sender_sc);
 				
 				var idCode = random.nextLong();
 				
-				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
-				.setTargetLogin(login_target).setId(idCode); // buffer builder
-				target_context.queueResponse(Packetbuilder.build());
-
-				//targetContext.queueResponse(Packetbuilder.build());
+				serverOperations.registerPrivateConnection(idCode, sender_sc, target_sc);
 				
 				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
 				.setTargetLogin(login_target).setId(idCode); // buffer builder
-				//senderContext.queueResponse(Packetbuilder.build());
+				target_context.queueResponse(Packetbuilder.build());				
+				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
+				.setTargetLogin(login_target).setId(idCode); // buffer builder
 				sender_Context.queueResponse(Packetbuilder.build());
 
 				return;
