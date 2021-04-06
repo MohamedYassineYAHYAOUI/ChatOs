@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.function.Consumer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.HashMap;
 import java.util.Objects;
@@ -22,7 +23,7 @@ class PrivateConnectionTraitement {
 	private final HashMap<String, Boolean> requestHistory = new HashMap<>();
 	final private HashMap<String, SimpleEntry<Long, SocketChannel>> clientsWithPrivateConnexion = new HashMap<>();
 	final private InetSocketAddress isa;
-	private  MessageResponse.Builder packetBuilder;
+	private final  MessageResponse.Builder packetBuilder = new MessageResponse.Builder();
 	private final Consumer<ByteBuffer> consumer;
 
 	PrivateConnectionTraitement(InetSocketAddress isa, Consumer<ByteBuffer> consumer) {
@@ -45,11 +46,20 @@ class PrivateConnectionTraitement {
 		}
 	}
 
-	private SocketChannel createPrivateConnection() throws IOException {
+	void createPrivateConnection(String clientTarget, long id ) {
+		synchronized (requestHistory) {
+			try {
+				var sc = SocketChannel.open();
+				//sc.configureBlocking(false);
+				sc.connect(isa);
+				clientsWithPrivateConnexion.put(clientTarget, new SimpleEntry<>(id, sc));
+				System.out.println("connected with server with "+clientTarget);
 
-		// sc.configureBlocking(false);
-		sc.connect(isa);
-		return sc;
+			}catch(IOException e) {
+				logger.log(Level.WARNING, "private connexion socket failed to connect to server");
+				return; 
+			}
+		}
 	}
 
 	void addPrivateConnexion(String login, Long connect_id) throws IOException {
@@ -64,10 +74,30 @@ class PrivateConnectionTraitement {
 
 	}
 
-	private boolean hasPrivateConnexion(String targetClientLogin) {
+	boolean hasPrivateConnexion(String targetClientLogin) {
 		Objects.requireNonNull(targetClientLogin);
+		synchronized (requestHistory) {
 		return clientsWithPrivateConnexion.containsKey(targetClientLogin);
+		}
 	}
+	
+	boolean requesteForPrivateConnexionInProgress(String target) {
+		synchronized (requestHistory) {
+			var sentRequest = requestHistory.get(target);
+			return sentRequest != null;
+		}
+	}
+	
+	
+	void wakeUpConsumers(String target) {
+		synchronized (requestHistory) {
+			requestHistory.put(target, true);
+			requestHistory.notifyAll();
+		}
+	}
+	
+	
+	
 
 	void sendMessageViaPrivateConnection(String login, String target, String message) {
 		Objects.requireNonNull(message);
@@ -78,25 +108,40 @@ class PrivateConnectionTraitement {
 
 			try {
 				synchronized (requestHistory) {
+					
 					if(!hasPrivateConnexion(target)) {
-						var sentRequest = requestHistory.get(target);
-						if(sentRequest ==null){
-							packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
-							.setTargetLogin(target); // buffer builder
-							requestHistory.put(target, false);
-						}
-						//wait 
-						//envoie de LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)
 
+						var sentRequest = requestHistory.get(target);
 						
-					}else {
+						while(sentRequest == null || sentRequest== false) {
+							requestHistory.wait();
+							sentRequest = requestHistory.get(target);
+						}
+						var pcWithTarget = clientsWithPrivateConnexion.get(target);
+						if(pcWithTarget  == null) {
+							System.out.println("connexion réfusé "+target);
+							return;
+						}
+						//packetBuilder.setPacketCode(Codes.LOGIN_PRIVATE).setId(pcWithTarget.getKey());
+						//consumer.accept(packetBuilder.build().getResponseBuffer());
+						//System.out.println("send LOGIN_PRIVATE(9) from if");
 						//envoie de LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)
+						
 					}
+					var pcWithTarget = clientsWithPrivateConnexion.get(target);
+					packetBuilder.setPacketCode(Codes.LOGIN_PRIVATE).setId(pcWithTarget.getKey());
+					consumer.accept(packetBuilder.build().getResponseBuffer());
+						System.out.println("send LOGIN_PRIVATE(9) from else");
+						//envoie de LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)
+					
 				}
-				
-			}catch(IOException e) {
-				logger.warning("Thread private connection error "+e);
 				return;
+			}catch(InterruptedException e) {
+				logger.log(Level.WARNING, "thread message sender interrupted "+e.getMessage());
+				return ;
+			}catch(NullPointerException e) {
+				logger.log(Level.WARNING, "thread message sender interrupted, null pointer "+e.getMessage());
+				return ;
 			}
 			
 		}).start();

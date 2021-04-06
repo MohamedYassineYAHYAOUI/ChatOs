@@ -97,7 +97,7 @@ class ServerOperations {
 		}
 		clients.remove(sc);
 	}
-
+	
 	boolean validUser(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 		Objects.requireNonNull(sc);
@@ -106,11 +106,30 @@ class ServerOperations {
 		return clientConnexion != null && clientConnexion.login.equals(login);
 	}
 	
+
+	boolean establishConnection(SocketChannel sc, long connectId) {
+		Objects.requireNonNull(sc);
+		var pc = currentPrivateConnexions.get(connectId);
+		if(pc == null) {
+			logger.info("request LOGIN PRIVATE ignored, due to unknown id");
+			return;
+		}
+		if(!pc.getKey().connected) {
+			pc.getKey().setScoket(sc); 
+		}else {
+			pc.getValue().setScoket(sc);
+		}
+		return pc.getValue().connected && pc.getKey().connected;
+		
+	}
+	
 	
 	private void silentlyClose(SocketChannel sc) {
 		try {
-			logger.info("Closing private connection channel "+sc.getRemoteAddress());
-			sc.close();
+			if(sc != null) {
+				logger.info("Closing private connection channel "+sc.getRemoteAddress());
+				sc.close();
+			}
 		} catch (IOException e) {
 			// ignore exception
 		}

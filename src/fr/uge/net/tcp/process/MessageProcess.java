@@ -35,7 +35,7 @@ public class MessageProcess implements ProcessInt {
 	}
 
 
-	 boolean process(ByteBuffer bbin) {
+	 private boolean process(ByteBuffer bbin) {
 		Objects.requireNonNull(bbin);
 		if (!doneProcessing) {
 			switch (messageReader.process(bbin)) {

@@ -18,20 +18,17 @@ public class LoginProcess implements ProcessInt  {
 	final private StringReader stringReader = new StringReader();
 	private final Consumer<String> toConsume;
 	private final OpCodeProcess opCodePorcess;
-	//private final SelectionKey key;
 	
 
 	public LoginProcess(OpCodeProcess opCodePorcess, Consumer<String > toConsume) {
 		this.opCodePorcess = Objects.requireNonNull(opCodePorcess);
 		this.toConsume = Objects.requireNonNull(toConsume);
-		//this.key =  Objects.requireNonNull(key);
 	}
 	
 	
 	
 	@Override
 	public boolean executeProcess(ByteBuffer bbin) {
-		//Objects.requireNonNull(key);
 		if(process(bbin)) {
 			toConsume.accept(getLogin());
 			reset();

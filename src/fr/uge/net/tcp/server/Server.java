@@ -11,6 +11,7 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
@@ -52,7 +53,7 @@ class Server {
 			var senderContext = (Context) key.attachment();
 			for (var clientKey : selector.keys()) {
 				var context = (Context) clientKey.attachment();
-				if (context != null && !context.equals(senderContext)) {
+				if (context != null && !context.equals(senderContext) && context.isMainChannel()) {
 					Packetbuilder.setPacketCode(Codes.PUBLIC_MESSAGE_RECEIVED).setLogin(login).setMessage(message);
 					context.queueResponse(Packetbuilder.build());
 				}
@@ -69,6 +70,12 @@ class Server {
 
 	
 	
+	void establishConnection(long connectId, SelectionKey key) {
+		Objects.requireNonNull(key);
+		var sc = (SocketChannel) key.channel();
+		serverOperations.establishConnection(sc, connectId);
+	}
+	
 	void redirectPrivateConnexionRequest(String login_requester , String login_target , SelectionKey key, Codes codePacket) {
 		var sc = (SocketChannel) key.channel();
 		
@@ -84,7 +91,7 @@ class Server {
 				continue;
 			}
 			var scTarget = (SocketChannel) clientKey.channel();
-			if(serverOperations.validUser(login_target, scTarget)) {
+			if(serverOperations.validUser(login_target, scTarget) && context.isMainChannel()) {
 				Packetbuilder.setPacketCode(codePacket).setLogin(login_requester)
 				.setTargetLogin(login_target); //buffer builder
 
@@ -111,7 +118,8 @@ class Server {
 			}
 			var sender_sc = (SocketChannel) clientKey.channel();
 
-			if(serverOperations.validUser(login_requester, sender_sc)) {
+			if(serverOperations.validUser(login_requester, sender_sc) 
+					&& target_context.isMainChannel() && sender_Context.isMainChannel() ) {
 				
 				var idCode = random.nextLong();
 				
@@ -141,7 +149,7 @@ class Server {
 				var context = (Context) clientKey.attachment();
 				if (context != null) {
 					var scTarget = (SocketChannel) clientKey.channel();
-					if (serverOperations.validUser(targetLogin, scTarget)) {
+					if (serverOperations.validUser(targetLogin, scTarget) && context.isMainChannel()) {
 
 						Packetbuilder.setPacketCode(Codes.PRIVATE_MESSAGE_RECEIVED).setLogin(senderLogin)
 								.setMessage(message);

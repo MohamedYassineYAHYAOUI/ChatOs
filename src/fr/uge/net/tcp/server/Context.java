@@ -12,6 +12,7 @@ import java.util.logging.Logger;
 
 import fr.uge.net.tcp.process.GenericValueProcess;
 import fr.uge.net.tcp.process.LoginProcess;
+import fr.uge.net.tcp.process.LongReader;
 import fr.uge.net.tcp.process.MessageProcess;
 import fr.uge.net.tcp.process.OpCodeProcess;
 import fr.uge.net.tcp.process.Process;
@@ -36,6 +37,7 @@ class Context {
 	private final OpCodeProcess codeProcess = new OpCodeProcess();
 	private ProcessInt processInt;
 	private boolean doneProcessing = true;
+	private boolean mainSocketForClient = false;
 
 
 	private boolean closed = false;
@@ -63,14 +65,7 @@ class Context {
 		if (closed) {
 			return;
 		}
-		try {
-			
-			//System.out.println("pricess code "+bbin.position());
-			/*if(!process.processCode(bbin)) {
-				return ;
-			}*/
-			
-			
+		try {	
 			if(!codeProcess.process(bbin)) {
 				return;
 			}
@@ -78,8 +73,12 @@ class Context {
 			if(codeProcess.receivedCode() && doneProcessing) {
 				switch(codeProcess.getProcessCode()) {
 				case REQUEST_SERVER_CONNECTION:
-					processInt = new LoginProcess(codeProcess,  login->server.registerLogin(login, key));
+					processInt = new LoginProcess(codeProcess,  login->{
+						server.registerLogin(login, key);
+						mainSocketForClient = true;
+					});
 					break;
+					
 				case PUBLIC_MESSAGE_SENT:
 					processInt = new MessageProcess(codeProcess, (login, msg)->server.broadcast(login, msg , key));
 					break;
@@ -101,6 +100,9 @@ class Context {
 					processInt = new MessageProcess(codeProcess, 
 							(login, target)->server.redirectIdPacket(login, target, key));
 					break;
+				case LOGIN_PRIVATE:
+					processInt = new LongReader(codeProcess, (id)-> server.establishConnection(id, key) );
+					break;
 				
 				default:
 					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
@@ -112,73 +114,6 @@ class Context {
 				updateInterestOps();
 			}
 
-			
-			
-			
-			/*
-			
-			System.out.println("after pricess code "+bbin.position());
-			if (process.receivedCode()) {
-				switch (process.getProcessCode()) {
-				
-				case REQUEST_SERVER_CONNECTION:
-					if(process.processLogin(bbin)) {
-						server.registerLogin(process.getLogin(), key);
-						process.reset();
-					}
-					
-					break;
-				case PUBLIC_MESSAGE_SENT:
-					if(process.processPacket(bbin)) {
-						server.broadcast(process.getLogin(), process.getMessage() , key);
-						process.reset();
-						updateInterestOps();
-					}
-		
-					break;
-				case PRIVATE_MESSAGE_SENT:
-					if(process.processPrivatePacket(bbin)) {
-						server.sendPrivateMessage(process.getLogin(), process.getTargetLogin(), process.getMessage(), key);
-						process.reset();
-						updateInterestOps();
-					}
-					break;
-					
-				case REQUEST_PRIVATE_CONNEXION:
-					
-					System.out.println(bbin.position());
-					System.out.println("in process");
-					if(process.processPrivateConnextion(bbin)) {
-						System.out.println("in redirect");
-						server.redirectPrivateConnexionRequest(process.getLogin(), process.getTargetLogin(), key, Codes.REQUEST_PRIVATE_CONNEXION);
-						process.reset();
-						updateInterestOps();
-					}
-					break;
-					
-				case REFUSE_PRIVATE_CONNEXION:
-					if(process.processPrivateConnextion(bbin)) {
-						server.redirectPrivateConnexionRequest(process.getLogin(), process.getTargetLogin(), key, Codes.REFUSE_PRIVATE_CONNEXION);
-						process.reset();	
-						updateInterestOps();
-					}
-					break;
-					
-				case ACCEPT_PRIVATE_CONNEXION:
-					if(process.processPrivateConnextion(bbin)) {
-						System.out.println("SERVER ACCEPTED middle");
-						server.redirectIdPacket(process.getLogin(), process.getTargetLogin(), key);
-						System.out.println("SERVER ACCEPTED after");
-						process.reset();	
-						updateInterestOps();
-					}
-					
-					break;
-				default:
-					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
-				}
-			}
-				*/
 		} catch (IllegalArgumentException e) {
 			logger.warning(e.getMessage());
 			process.reset();
@@ -190,7 +125,10 @@ class Context {
 			closed = true;
 			key.cancel(); 
 		}
-		
+	}
+	
+	boolean isMainChannel() {
+		return mainSocketForClient;
 	}
 
 	/**

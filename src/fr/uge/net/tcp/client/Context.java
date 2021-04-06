@@ -33,15 +33,16 @@ class Context {
 	final private Queue<ByteBuffer> queue = new LinkedList<>(); // buffers read-mode
 	final private PrivateConnectionTraitement pcTraitaitement;
 	
-	//final private HashMap<String, Long> clientsWithPrivateConnexion = new HashMap<>();
-	//hashmap <String , simpleEntry<Long, SC > >
-	
-	
+
+	// final private HashMap<String, Long> clientsWithPrivateConnexion = new
+	// HashMap<>();
+	// hashmap <String , simpleEntry<Long, SC > >
+
 	private final Process process;
 	private final OpCodeProcess codeProcess = new OpCodeProcess();
 	private ProcessInt processInt;
 	private boolean doneProcessing = true;
-
+	private boolean canSendCommand = true;
 	private final ClientOS clientOs;
 
 	private final String login;
@@ -107,93 +108,27 @@ class Context {
 						if (!requester.equals(this.login)) {
 							return;
 						}
-						
-						//historique[targetlogin] = true
-						//notifyAll
-						System.out.println("private connexion request refused from " + target);
+						System.out.println("Private connexion refused from "+target);
+
+						pcTraitaitement.wakeUpConsumers(target);
 					});
 					break;
 				case ID_PRIVATE:
-					processInt = new GenericValueProcess<>(codeProcess,
-							new LongReader(), (requester, target, id)->	
+					processInt = new GenericValueProcess<>(codeProcess, new LongReader(), (requester, target, id) -> {
+						System.out.println("login " + requester + " login_target " + target + " connect id " + id);
+						pcTraitaitement.createPrivateConnection(requester.equals(login) ? target : requester, id);
 
-					//synchronized 	
-						//création de SC ////clientsWithPrivateConnexion.put(key, value)
-						//historique[targetlogin] = true
-					//notifyAll
-					
-					
-					
-					System.out.println("login " + requester + " login_target " + target + " connect id " + id));
-
+						pcTraitaitement.wakeUpConsumers(requester.equals(login) ? target : requester);
+					});
 					break;
 				default:
 					throw new IllegalArgumentException("invalid Code ");
 				}
-				
+
 				doneProcessing = processInt.executeProcess(bbin);
-				
+
 			}
-/*
-			// traitement
 
-			switch (process.getProcessCode()) {
-			case LOGIN_ACCEPTED:
-				logger.info("connection to server established");
-				isConnected = true;
-				process.reset();
-				break;
-			case LOGIN_REFUSED:
-				throw new IllegalStateException();
-
-			case PUBLIC_MESSAGE_RECEIVED:
-				if (process.processPacket(bbin)) {
-					System.out.println(process.getLogin() + ": " + process.getMessage());
-					process.reset();
-				}
-
-				break;
-			case PRIVATE_MESSAGE_RECEIVED:
-				if (process.processPacket(bbin)) {
-					System.out.println("private message from " + process.getLogin() + ": " + process.getMessage());
-					process.reset();
-				}
-				break;
-			case REQUEST_PRIVATE_CONNEXION:
-				if (process.processPrivateConnextion(bbin)) {
-					clientOs.requestPrivateConnection(process.getLogin(), process.getTargetLogin());
-					process.reset();
-				}
-				break;
-
-			case REFUSE_PRIVATE_CONNEXION:
-				if (process.processPrivateConnextion(bbin)) {
-					var login_requester = process.getLogin();
-					var login_target = process.getTargetLogin();
-					if (!login_target.equals(login)) {
-						return;
-					}
-					System.out.println("private connexion request refused from " + login_requester);
-					process.reset();
-				}
-				break;
-			case ID_PRIVATE:
-				System.out.println("CLIENT ACCEPTED before");
-				if (process.processIdPrivate(bbin)) {
-					System.out.println("CLIENT ACCEPTED middle");
-
-					var login_requester = process.getLogin();
-					var login_target = process.getTargetLogin();
-					var connect_id = process.getMessage();
-					// clientOs -> LOGIN_PRIVATE(9)
-					System.out.println(
-							"login " + login_requester + " login_target " + login_target + " connect id " + connect_id);
-					process.reset();
-				}
-				break;
-			default:
-				throw new IllegalArgumentException("invalid Code ");
-			}*/
 		} catch (IllegalArgumentException e) {
 			logger.warning(e.getMessage());
 			process.reset();
@@ -206,7 +141,7 @@ class Context {
 		}
 
 	}
-
+	
 
 
 	private void silentlyClose() {
@@ -224,13 +159,28 @@ class Context {
 	 * @param bb
 	 */
 	void queueMessage(ByteBuffer bb) {
-		bb.flip();
-		queue.add(bb);
-		processOut();
-		bb.compact();
-		updateInterestOps();
+		synchronized (queue) {
+			bb.flip();
+			queue.add(bb);
+			processOut();
+			bb.compact();
+			updateInterestOps();
+		}
 	}
 
+	boolean canSendCommand() {
+		synchronized (queue) {
+			return canSendCommand;
+		}
+	}
+	
+	void setCanSendCommand(boolean value) {
+		synchronized (queue) {
+			canSendCommand = value;
+		}
+	}
+	
+	
 	/**
 	 * Try to fill bbout from the message queue
 	 *

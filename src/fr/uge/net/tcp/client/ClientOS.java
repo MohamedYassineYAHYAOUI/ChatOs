@@ -36,15 +36,13 @@ public class ClientOS {
 	private final Path folderPath;
 	private Context uniqueContext;
 	private final MessageResponse.Builder packetBuilder;
-	private PrivateConnectionTraitement privateConnections ;
-	
+	private PrivateConnectionTraitement privateConnections;
 
 	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
 		this.folderPath = Objects.requireNonNull(folderPath);
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
 		this.packetBuilder = new MessageResponse.Builder();
-		
 
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
@@ -109,27 +107,39 @@ public class ClientOS {
 		if (!login_target.equals(login)) {
 			return;
 		}
-		System.out.print("private connexion request form " + login_requester + ": Accept(Y) or refuse(N)\n>");
-		while (true) {
-			if (!commandQueue.isEmpty()) {
-				var response = commandQueue.poll();
-				if (response.toUpperCase().equals("Y")) {
-					System.out.println("ACCEPTED");
-					packetBuilder.setPacketCode(Codes.ACCEPT_PRIVATE_CONNEXION).setLogin(login_requester)
-							.setTargetLogin(login_target);
-				} else if (response.toUpperCase().equals("N")) {
-					System.out.println("REFUSED");
-					packetBuilder.setPacketCode(Codes.REFUSE_PRIVATE_CONNEXION).setLogin(login_requester)
-							.setTargetLogin(login_target);
-				} else {
-					System.out.print("private connexion request form " + login_requester + ": Accept(Y) or refuse(N)\n>");
-					continue;
+		System.out.println("private connexion request form " + login_requester + ": Accept(Y) or refuse(N)");
+		new Thread(() -> {
+			try {
+				uniqueContext.setCanSendCommand(false);
+				while (!Thread.interrupted()) {
+						if (!commandQueue.isEmpty()) {
+							var response = commandQueue.poll();
+							if (response.toUpperCase().equals("Y")) {
+								System.out.println("ACCEPTED");
+								packetBuilder.setPacketCode(Codes.ACCEPT_PRIVATE_CONNEXION).setLogin(login_requester)
+										.setTargetLogin(login_target);
+							} else if (response.toUpperCase().equals("N")) {
+								System.out.println("REFUSED");
+								packetBuilder.setPacketCode(Codes.REFUSE_PRIVATE_CONNEXION).setLogin(login_requester)
+										.setTargetLogin(login_target);
+							} else {
+								
+								System.out.println("invalid choice, private connexion request form " + login_requester
+										+ ": Accept(Y) or refuse(N)");
+								continue;
+							}
+							uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+							uniqueContext.setCanSendCommand(true);
+							commandQueue.poll();
+							return;
+						}
 				}
-				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+			} catch (Exception e) {
+				uniqueContext.setCanSendCommand(true);
+				logger.warning("Thread private connexion inturrepted");
 				return;
 			}
-
-		}
+		}).start();
 
 	}
 
@@ -140,7 +150,7 @@ public class ClientOS {
 	private void processCommands() {
 		// intrestOPS
 
-		while (!commandQueue.isEmpty()) {
+		while (!commandQueue.isEmpty() ) {
 
 			try {
 
@@ -153,36 +163,26 @@ public class ClientOS {
 					var message = msg.substring(targetLogin.length()) + 2;
 
 					// thread action
-						// 
-					
-					
-					
-					// targetLogin  , boolean : historique
-					privateConnections.sendMessageViaPrivateConnection(login, targetLogin, message);
-					continue ;
-					if (!uniqueContext.hasPrivateConnexion(targetLogin)){ // vérifier si une connexion exite déjà
-						
-						// if( historique[targetLogin] n'existe pas) 
-							//envoie REQUEST_PRIVATE_CONNEXION
-						
-							packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
-									.setTargetLogin(targetLogin); // buffer builder
-							
-							
-						// historique . add(targetLogin , false
-						// while (historique[targetLogin] == false) n'est pas encore traité 
-							// ----- wait
-						
-						//si historique[targetLogin] false -> message : connexion réfusé 
-						//sinon // LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)  
-							// write()
-							// read()
-						
-					} else {
-						// LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG) (sc)
-						System.out.println("NO CONNECTION ESTABLISHED");
+					//
+
+					if (targetLogin.equals(login)) {
+						continue;
 					}
 
+					// targetLogin , boolean : historique
+					privateConnections.sendMessageViaPrivateConnection(login, targetLogin, message);
+					// continue ;
+
+					if (!privateConnections.hasPrivateConnexion(targetLogin)) {
+						if (!privateConnections.requesteForPrivateConnexionInProgress(targetLogin)) {
+							packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
+									.setTargetLogin(targetLogin); // buffer builder
+							privateConnections.addToHistory(targetLogin);
+						}
+					}else {
+						continue;
+					}
+					
 				} else if (msg.startsWith("@")) {// message privée
 					targetLogin = msg.split(" ")[0].substring(1);
 					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
@@ -208,10 +208,11 @@ public class ClientOS {
 	public void launch() throws IOException {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
-		uniqueContext = new Context(key, login, this);
-		privateConnections =  new PrivateConnectionTraitement(serverAddress, buff->uniqueContext.queueMessage(buff));
-		//privateConnections =
-		
+
+		privateConnections = new PrivateConnectionTraitement(serverAddress, buff -> uniqueContext.queueMessage(buff));
+		uniqueContext = new Context(key, login, this, privateConnections);
+		// privateConnections =
+
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);
 
@@ -228,7 +229,7 @@ public class ClientOS {
 					return;
 				}
 				selector.select(this::treatKey);
-				if (uniqueContext.isConnected()) {
+				if (uniqueContext.isConnected() && uniqueContext.canSendCommand()) {
 					processCommands();
 				}
 				System.out.println("Select finished");
