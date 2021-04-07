@@ -12,7 +12,9 @@ import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.nio.charset.Charset;
 import java.nio.file.Path;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.Objects;
 import java.util.Scanner;
 import java.util.Set;
@@ -33,24 +35,27 @@ public class ClientOS {
 	private final String login;
 	private final Thread console;
 	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
+	private final HashMap<String, SimpleEntry<PrivateContext, String>> privateConnexion = new HashMap<>(); 
+	
+	
+	private int threadsCounter =0;																							
+																									
 	private final Path folderPath;
 	private Context uniqueContext;
 	private final MessageResponse.Builder packetBuilder;
-	private PrivateConnectionTraitement privateConnections;
 
 	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
 		this.folderPath = Objects.requireNonNull(folderPath);
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
 		this.packetBuilder = new MessageResponse.Builder();
-
+		// this.privateConnections = new PrivateConnectionTraitement();
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
 		this.console = new Thread(this::consoleRun);
 	}
 
 	private void consoleRun() {
-
 		try (var scan = new Scanner(System.in)) {
 			processConnection();
 
@@ -103,7 +108,43 @@ public class ClientOS {
 		selector.wakeup();
 	}
 
-	void requestPrivateConnection(String login_requester, String login_target) {
+	
+	void removePrivateConnection(String targetLogin) {
+		privateConnexion.remove(targetLogin);
+	}
+
+	
+	void createPrivateConnection(String targetLogin, long id) {
+
+		SocketChannel sc;
+		try {
+
+			sc = SocketChannel.open();
+
+			sc.configureBlocking(false);
+			var key = sc.register(selector, SelectionKey.OP_CONNECT);
+			String msg = null;
+			var pc = privateConnexion.get(targetLogin);
+			if(pc != null) {
+				msg = pc.getValue();
+			}
+			synchronized (serverAddress) {
+				sc.connect(serverAddress);
+				var pccontext = PrivateContext.CreateContext(key, targetLogin, id, msg);
+
+				pccontext.doWrite();
+				key.attach(pccontext);
+				privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String >(pccontext, null));
+
+			}
+			selector.wakeup();
+			
+		} catch (IOException e) {
+			logger.warning("error while creating private connection "+e.getMessage());
+		}
+	}
+
+	void requestPrivateConnection(String login_requester, String login_target, int threadOrder) {
 		if (!login_target.equals(login)) {
 			return;
 		}
@@ -112,36 +153,41 @@ public class ClientOS {
 			try {
 				uniqueContext.setCanSendCommand(false);
 				while (!Thread.interrupted()) {
-						if (!commandQueue.isEmpty()) {
-							var response = commandQueue.poll();
-							if (response.toUpperCase().equals("Y")) {
-								System.out.println("ACCEPTED");
-								packetBuilder.setPacketCode(Codes.ACCEPT_PRIVATE_CONNEXION).setLogin(login_requester)
-										.setTargetLogin(login_target);
-							} else if (response.toUpperCase().equals("N")) {
-								System.out.println("REFUSED");
-								packetBuilder.setPacketCode(Codes.REFUSE_PRIVATE_CONNEXION).setLogin(login_requester)
-										.setTargetLogin(login_target);
-							} else {
-								
-								System.out.println("invalid choice, private connexion request form " + login_requester
-										+ ": Accept(Y) or refuse(N)");
-								continue;
-							}
-							uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
-							uniqueContext.setCanSendCommand(true);
-							commandQueue.poll();
-							return;
+					if (!commandQueue.isEmpty() && uniqueContext.currentThreadOrder() == threadOrder) {
+						var response = commandQueue.poll();
+						if (response.toUpperCase().equals("Y")) {
+							System.out.println("ACCEPTED");
+							packetBuilder.setPacketCode(Codes.ACCEPT_PRIVATE_CONNEXION).setLogin(login_requester)
+									.setTargetLogin(login_target);
+						} else if (response.toUpperCase().equals("N")) {
+							System.out.println("REFUSED");
+							packetBuilder.setPacketCode(Codes.REFUSE_PRIVATE_CONNEXION).setLogin(login_requester)
+									.setTargetLogin(login_target);
+						} else {
+
+							System.out.println("invalid choice, private connexion request form " + login_requester
+									+ ": Accept(Y) or refuse(N)");
+							continue;
 						}
+						synchronized (commandQueue) {
+							uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
+							uniqueContext.doWrite();
+							uniqueContext.setCanSendCommand(true);
+						}
+
+						//commandQueue.poll();
+						return;
+					}
 				}
 			} catch (Exception e) {
 				uniqueContext.setCanSendCommand(true);
-				logger.warning("Thread private connexion inturrepted");
+				logger.warning("Thread private connexion inturrepted "+e);
 				return;
 			}
 		}).start();
 
 	}
+	
 
 	/**
 	 * Processes the command from commandQueue
@@ -150,7 +196,7 @@ public class ClientOS {
 	private void processCommands() {
 		// intrestOPS
 
-		while (!commandQueue.isEmpty() ) {
+		while (!commandQueue.isEmpty()) {
 
 			try {
 
@@ -159,30 +205,27 @@ public class ClientOS {
 				String targetLogin = null;
 
 				if (msg.startsWith("/")) {// connexion privée /login_target file
+
 					targetLogin = msg.split(" ")[0].substring(1); // target Login
 					var message = msg.substring(targetLogin.length()) + 2;
-
-					// thread action
-					//
 
 					if (targetLogin.equals(login)) {
 						continue;
 					}
 
-					// targetLogin , boolean : historique
-					privateConnections.sendMessageViaPrivateConnection(login, targetLogin, message);
-					// continue ;
-
-					if (!privateConnections.hasPrivateConnexion(targetLogin)) {
-						if (!privateConnections.requesteForPrivateConnexionInProgress(targetLogin)) {
-							packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
-									.setTargetLogin(targetLogin); // buffer builder
-							privateConnections.addToHistory(targetLogin);
+					var pc = privateConnexion.get(targetLogin);
+					if (pc == null) { // no request for the target
+						packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
+								.setTargetLogin(targetLogin); // buffer builder
+						privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String>(null, message));
+					} else {
+						if (pc.getKey() == null) { // request in progress
+						} else { // connexion established
+							pc.getKey().queueMessage(UTF8.encode(message));
 						}
-					}else {
 						continue;
 					}
-					
+
 				} else if (msg.startsWith("@")) {// message privée
 					targetLogin = msg.split(" ")[0].substring(1);
 					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
@@ -209,8 +252,9 @@ public class ClientOS {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
 
-		privateConnections = new PrivateConnectionTraitement(serverAddress, buff -> uniqueContext.queueMessage(buff));
-		uniqueContext = new Context(key, login, this, privateConnections);
+		// privateConnections = new PrivateConnectionTraitement(serverAddress, buff ->
+		// uniqueContext.queueMessage(buff));
+		uniqueContext = new Context(key, login, this);
 		// privateConnections =
 
 		key.attach(uniqueContext);
@@ -220,8 +264,8 @@ public class ClientOS {
 
 		while (!Thread.interrupted()) {
 			try {
-				printKeys(); // for debug
-				System.out.println("Starting select");
+				 printKeys(); // for debug
+				 System.out.println("Starting select");
 
 				if (!sc.isOpen()) {
 					selector.close();
@@ -232,7 +276,7 @@ public class ClientOS {
 				if (uniqueContext.isConnected() && uniqueContext.canSendCommand()) {
 					processCommands();
 				}
-				System.out.println("Select finished");
+				 System.out.println("Select finished");
 
 			} catch (UncheckedIOException tunneled) {
 				throw tunneled.getCause();
@@ -241,17 +285,20 @@ public class ClientOS {
 	}
 
 	private void treatKey(SelectionKey key) {
-		printSelectedKey(key);
+		 printSelectedKey(key);
+		
+		var context = (GeneralContext) key.attachment();
 		try {
 			if (key.isValid() && key.isConnectable()) {
-				uniqueContext.doConnect();
+				context.doConnect();
 			}
 			if (key.isValid() && key.isWritable()) {
 
-				uniqueContext.doWrite();
+				context.doWrite();
 			}
 			if (key.isValid() && key.isReadable()) {
-				uniqueContext.doRead();
+				context.doRead();
+				
 			}
 		} catch (IOException ioe) {
 			// lambda call in select requires to tunnel IOException
@@ -274,10 +321,7 @@ public class ClientOS {
 		if (args.length != 4) {
 			usage();
 			return;
-		} /*
-			 * if (args[1].length() > 30) { System.out.println("login is too long ");
-			 * return; }
-			 */
+		}
 		new ClientOS(args[1], Path.of(args[0]), new InetSocketAddress(args[2], Integer.parseInt(args[3]))).launch();
 	}
 

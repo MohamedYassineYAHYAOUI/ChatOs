@@ -64,19 +64,7 @@ public class MessageResponse implements Response {
 			if (messageCode == null) {
 				resetBuilder();
 				throw new IllegalStateException("packet is missing code");
-			} /*
-				 * if(login == null) { resetBuilder(); throw new
-				 * IllegalStateException("packet is missing login"); }
-				 */
-			// MessageResponse messageResponse = null;
-			/*
-			 * if(targetLogin != null && message != null) { messageResponse = new
-			 * MessageResponse(messageCode, login, targetLogin, message ); }else if( message
-			 * != null) { messageResponse = new MessageResponse(messageCode, login,
-			 * message); }else if(targetLogin != null){ messageResponse = new
-			 * MessageResponse(messageCode, login, targetLogin); }else { messageResponse =
-			 * new MessageResponse(messageCode, login); }
-			 */
+			} 
 			MessageResponse messageResponse = new MessageResponse(messageCode, login, targetLogin, message,
 					connexionId, setId);
 			resetBuilder();
@@ -110,19 +98,7 @@ public class MessageResponse implements Response {
 		this.setId = setId;
 	}
 
-	/*
-	 * private MessageResponse(Codes code, String login) { this.login =
-	 * Objects.requireNonNull(login); this.messageCode = code; }
-	 * 
-	 * private MessageResponse(Codes code, String login, String message) {
-	 * this(code, login); this.message = Objects.requireNonNull(message);
-	 * 
-	 * }
-	 * 
-	 * private MessageResponse(Codes code, String login, String targetLogin, String
-	 * message) { this(code, login, message); this.targetLogin =
-	 * Objects.requireNonNull(targetLogin); }
-	 */
+
 
 	@Override
 	public Codes getResponseCode() {

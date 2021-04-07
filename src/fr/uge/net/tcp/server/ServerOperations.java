@@ -6,6 +6,7 @@ import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
+import java.util.Set;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.logging.Logger;
 
@@ -27,15 +28,15 @@ class ServerOperations {
 	}
 
 	private class PrivateConnexionSocket{
-		private SocketChannel sc; // Can be Null
+		private Context context ; // Can be Null
 		private boolean connected; // false
 		
 		
-		void setScoket(SocketChannel sc) {
-			if(this.sc != null) {
-				throw new IllegalStateException("SC exist already");
+		void setContext(Context context) {
+			if(this.context != null) {
+				throw new IllegalStateException("context exist already");
 			}
-			this.sc = Objects.requireNonNull(sc);
+			this.context = Objects.requireNonNull(context);
 			connected = true;	
 		}
 		
@@ -90,8 +91,8 @@ class ServerOperations {
 		for(var connexionId : connexionClient.connexionsIds) {
 			var cp = currentPrivateConnexions.get(connexionId);
 			if(cp != null) {
-				silentlyClose(cp.getKey().sc);
-				silentlyClose(cp.getValue().sc);
+				cp.getKey().context.silentlyClose();
+				cp.getValue().context.silentlyClose();
 			}
 			currentPrivateConnexions.remove(connexionId);
 		}
@@ -107,33 +108,30 @@ class ServerOperations {
 	}
 	
 
-	boolean establishConnection(SocketChannel sc, long connectId) {
-		Objects.requireNonNull(sc);
+	boolean establishConnection(Context context, long connectId) {
+		Objects.requireNonNull(context);
 		var pc = currentPrivateConnexions.get(connectId);
 		if(pc == null) {
 			logger.info("request LOGIN PRIVATE ignored, due to unknown id");
-			return;
+			return false;
 		}
 		if(!pc.getKey().connected) {
-			pc.getKey().setScoket(sc); 
+			pc.getKey().setContext(context); 
 		}else {
-			pc.getValue().setScoket(sc);
+			pc.getValue().setContext(context);
 		}
 		return pc.getValue().connected && pc.getKey().connected;
-		
 	}
 	
-	
-	private void silentlyClose(SocketChannel sc) {
-		try {
-			if(sc != null) {
-				logger.info("Closing private connection channel "+sc.getRemoteAddress());
-				sc.close();
-			}
-		} catch (IOException e) {
-			// ignore exception
+	SimpleEntry<Context, Context> getClientsContext(long connectId){
+		var pc =  currentPrivateConnexions.get(connectId);
+		if(pc == null) {
+			throw new IllegalArgumentException("id not valid");
 		}
+		return new SimpleEntry<>(pc.getKey().context,pc.getValue().context);
 	}
+	
+	
 	
 	
 	

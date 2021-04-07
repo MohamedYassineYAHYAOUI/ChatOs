@@ -32,7 +32,7 @@ class Server {
 	private final MessageResponse.Builder Packetbuilder = new MessageResponse.Builder();
 
 	private final Random random = new Random();
-	
+
 	public Server(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
 		serverSocketChannel.bind(new InetSocketAddress(port));
@@ -68,80 +68,85 @@ class Server {
 		serverOperations.removeClient(sc);
 	}
 
-	
-	
 	void establishConnection(long connectId, SelectionKey key) {
 		Objects.requireNonNull(key);
-		var sc = (SocketChannel) key.channel();
-		serverOperations.establishConnection(sc, connectId);
+		
+		System.out.println("login private "+connectId);
+		var context = (Context) key.attachment();
+		if (serverOperations.establishConnection(context, connectId)) {
+			var clientsChannels = serverOperations.getClientsContext(connectId);
+			Packetbuilder.setPacketCode(Codes.ESTABLISHED);
+			clientsChannels.getKey().setPrivateConnection(clientsChannels.getValue());
+
+			clientsChannels.getKey().queueResponse(Packetbuilder.build());
+
+			Packetbuilder.setPacketCode(Codes.ESTABLISHED);
+			clientsChannels.getValue().queueResponse(Packetbuilder.build());
+			clientsChannels.getValue().setPrivateConnection(clientsChannels.getKey());
+		}
 	}
-	
-	void redirectPrivateConnexionRequest(String login_requester , String login_target , SelectionKey key, Codes codePacket) {
+
+	void redirectPrivateConnexionRequest(String login_requester, String login_target, SelectionKey key,
+			Codes codePacket, boolean reverse) {
 		var sc = (SocketChannel) key.channel();
-		
-		
-		
-		if(!serverOperations.validUser(login_requester, sc)) {
+
+		if (!serverOperations.validUser(reverse ? login_target: login_requester, sc)) {
 			logger.log(Level.INFO, "ignored invalide request from Client");
 			return;
 		}
-		for(var clientKey: selector.keys()) {
+		for (var clientKey : selector.keys()) {
 			var context = (Context) clientKey.attachment();
 			if (context == null) {
 				continue;
 			}
 			var scTarget = (SocketChannel) clientKey.channel();
-			if(serverOperations.validUser(login_target, scTarget) && context.isMainChannel()) {
-				Packetbuilder.setPacketCode(codePacket).setLogin(login_requester)
-				.setTargetLogin(login_target); //buffer builder
+			if (serverOperations.validUser(reverse ? login_requester : login_target , scTarget)
+					&& context.isMainChannel()) {
 
-				
-				var tmp = Packetbuilder.build();
-				
-				context.queueResponse(tmp);
+				Packetbuilder.setPacketCode(codePacket).setLogin(login_requester)
+				.setTargetLogin(login_target); // buffe builder
+
+				context.queueResponse(Packetbuilder.build());
 				return;
 			}
 		}
 	}
 
-	void redirectIdPacket(String login_requester , String login_target , SelectionKey key){
+	void redirectIdPacket(String login_requester, String login_target, SelectionKey key) {
 		var target_sc = (SocketChannel) key.channel();
 		var target_context = (Context) key.attachment();
-		if(!serverOperations.validUser(login_target, target_sc)) {
+		if (!serverOperations.validUser(login_target, target_sc)) {
 			logger.log(Level.INFO, "ignored invalide request from Client");
 			return;
 		}
-		for(var clientKey: selector.keys()) {
+		for (var clientKey : selector.keys()) {
 			var sender_Context = (Context) clientKey.attachment();
-			if (sender_Context  == null) {
+			if (sender_Context == null) {
 				continue;
 			}
 			var sender_sc = (SocketChannel) clientKey.channel();
 
-			if(serverOperations.validUser(login_requester, sender_sc) 
-					&& target_context.isMainChannel() && sender_Context.isMainChannel() ) {
-				
+			if (serverOperations.validUser(login_requester, sender_sc) && target_context.isMainChannel()
+					&& sender_Context.isMainChannel()) {
+
 				var idCode = random.nextLong();
-				
+
 				serverOperations.registerPrivateConnection(idCode, sender_sc, target_sc);
-				
-				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
-				.setTargetLogin(login_target).setId(idCode); // buffer builder
-				target_context.queueResponse(Packetbuilder.build());				
-				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester)
-				.setTargetLogin(login_target).setId(idCode); // buffer builder
+
+				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester).setTargetLogin(login_target)
+						.setId(idCode); // buffer builder
+				target_context.queueResponse(Packetbuilder.build());
+				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester).setTargetLogin(login_target)
+						.setId(idCode); // buffer builder
 				sender_Context.queueResponse(Packetbuilder.build());
 
 				return;
 			}
 		}
-		
-		
+
 	}
-	
-	
-	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key)
-			{
+
+	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key) {
 		var sc = (SocketChannel) key.channel();
 
 		if (serverOperations.validUser(senderLogin, sc)) {
@@ -154,7 +159,7 @@ class Server {
 						Packetbuilder.setPacketCode(Codes.PRIVATE_MESSAGE_RECEIVED).setLogin(senderLogin)
 								.setMessage(message);
 						context.queueResponse(Packetbuilder.build());
-					return;
+						return;
 					}
 				}
 			}

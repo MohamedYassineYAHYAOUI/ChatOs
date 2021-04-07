@@ -32,7 +32,9 @@ public class GenericValueProcess<T> implements ProcessInt {
 	@Override
 	public boolean executeProcess(ByteBuffer bbin) {
 		if (process(bbin)) {
+			System.out.println(">>>>>>>>>> avant");
 			toExecte.accept(getLogin(),getTargetLogin(), getValue());
+			System.out.println(">>>>>>>>>> aprés");
 			reset();
 			return true;
 		}

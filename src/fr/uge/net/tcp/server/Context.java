@@ -6,6 +6,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
+import java.util.Objects;
 import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -39,6 +40,10 @@ class Context {
 	private boolean doneProcessing = true;
 	private boolean mainSocketForClient = false;
 
+	private Context  privateConnetion; // context
+	
+	
+
 
 	private boolean closed = false;
 
@@ -66,6 +71,7 @@ class Context {
 			return;
 		}
 		try {	
+			System.out.println("PROCESS CODE");
 			if(!codeProcess.process(bbin)) {
 				return;
 			}
@@ -89,11 +95,11 @@ class Context {
 					break;
 				case REQUEST_PRIVATE_CONNEXION:
 					processInt = new MessageProcess(codeProcess, 
-							(login, target)-> server.redirectPrivateConnexionRequest(login, target , key, Codes.REQUEST_PRIVATE_CONNEXION));
+							(login, target)-> server.redirectPrivateConnexionRequest(login, target , key, Codes.REQUEST_PRIVATE_CONNEXION, false));
 					break;
 				case REFUSE_PRIVATE_CONNEXION:
 					processInt = new MessageProcess(codeProcess, 
-							(login, target)-> server.redirectPrivateConnexionRequest(login, target, key, Codes.REFUSE_PRIVATE_CONNEXION));
+							(login, target)-> server.redirectPrivateConnexionRequest(login, target, key, Codes.REFUSE_PRIVATE_CONNEXION, true));
 					break;
 					
 				case ACCEPT_PRIVATE_CONNEXION:
@@ -101,6 +107,7 @@ class Context {
 							(login, target)->server.redirectIdPacket(login, target, key));
 					break;
 				case LOGIN_PRIVATE:
+					System.out.println("LOGIN PRIVATE");
 					processInt = new LongReader(codeProcess, (id)-> server.establishConnection(id, key) );
 					break;
 				
@@ -131,6 +138,9 @@ class Context {
 		return mainSocketForClient;
 	}
 
+	void setPrivateConnection(Context pcContext) {
+		this.privateConnetion = Objects.requireNonNull(pcContext);
+	}
 	/**
 	 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
 	 *
@@ -142,7 +152,7 @@ class Context {
 		updateInterestOps();
 	}
 
-	private void silentlyClose() {
+	void silentlyClose() {
 		try {
 			logger.log(Level.INFO, "closing client " + sc.getRemoteAddress());
 			sc.close();
@@ -213,6 +223,17 @@ class Context {
 		}
 	}
 
+	
+	
+	private void processOutPrivate(ByteBuffer bb) {
+		while(bbout.remaining() >= bb.position()) {
+			bbout.put(bb.flip());
+			bb.compact();
+		}
+	}
+	
+	
+	
 	/**
 	 * Performs the read action on sc
 	 *
@@ -225,8 +246,14 @@ class Context {
 		if (sc.read(bbin) == -1) {
 			closed = true;
 		}
-		System.out.println("doRead remaining "+bbin.remaining());
-		processIn();
+		if(!mainSocketForClient && privateConnetion!=null) {
+			privateConnetion.processOutPrivate(bbin);
+		}else {
+			processIn();
+		}
+		
+		
+		
 		updateInterestOps();
 	}
 
