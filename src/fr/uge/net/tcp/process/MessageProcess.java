@@ -8,9 +8,9 @@ import fr.uge.net.tcp.readers.MessageReader;
 
 
 /**
- * process Buffer with the format : String - String
- * login - message
- * login - target
+ * Process buffers that contains :
+ * Format :  	( String ) - ( String )
+ * 
  */
 
 public class MessageProcess implements Process {
@@ -25,7 +25,10 @@ public class MessageProcess implements Process {
 		this.messageReader = new MessageReader();
 		this.toExecte = Objects.requireNonNull(toExecte);
 	}
-
+	
+	/**
+	 * execute the process passed to MessageProcess if the reader operation is valid 
+	 */
 	@Override
 	public boolean executeProcess(ByteBuffer bbin) {
 		if (process(bbin)) {
@@ -36,7 +39,11 @@ public class MessageProcess implements Process {
 		return false;
 	}
 
-
+	/**
+	 * process the bbin using the messageReader reader
+	 * @param bbin buffer to process
+	 * @return ProcessStatus  of the reader
+	 */
 	 private boolean process(ByteBuffer bbin) {
 		Objects.requireNonNull(bbin);
 		if (!doneProcessing) {
@@ -58,6 +65,7 @@ public class MessageProcess implements Process {
 		return messageReader.getLogin();
 	}
 
+	
 	public String getValue() {
 		throw new UnsupportedOperationException("operation not valide for Message Process");
 	}
