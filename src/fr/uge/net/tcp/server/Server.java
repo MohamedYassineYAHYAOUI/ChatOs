@@ -17,13 +17,11 @@ import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.replies.MessageResponse;
-
-import fr.uge.net.tcp.server.replies.Response.Codes;
+import fr.uge.net.tcp.responses.MessageResponse;
+import fr.uge.net.tcp.responses.Response.Codes;
 
 class Server {
 
-	static private int BUFFER_SIZE = 1_024;
 	static private Logger logger = Logger.getLogger(Server.class.getName());
 
 	private final ServerSocketChannel serverSocketChannel;
@@ -42,8 +40,8 @@ class Server {
 
 	void registerLogin(String login, SelectionKey key) {
 		var context = (Context) key.attachment();
-		var respond = serverOperations.regesterLogin(login, (SocketChannel) key.channel());
-		context.queueResponse(respond);
+		var codeResponse = serverOperations.regesterLogin(login, (SocketChannel) key.channel());
+		context.queueResponse(Packetbuilder.setPacketCode(codeResponse).build());
 	}
 
 	void broadcast(String login, String message, SelectionKey key) {

@@ -1,13 +1,16 @@
-package fr.uge.net.tcp.process;
+package fr.uge.net.tcp.readers;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.function.Consumer;
 
+import fr.uge.net.tcp.process.OpCodeProcess;
+import fr.uge.net.tcp.process.Process;
 
 
 
-public class LongReader implements Reader<Long>, ProcessInt{
+
+public class LongReader implements Reader<Long>, Process{
 
 	
 

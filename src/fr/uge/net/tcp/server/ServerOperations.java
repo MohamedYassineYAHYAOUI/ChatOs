@@ -1,19 +1,15 @@
 package fr.uge.net.tcp.server;
 
-import java.io.IOException;
-import java.nio.ByteBuffer;
+
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
-import java.util.Set;
+
 import java.util.AbstractMap.SimpleEntry;
 import java.util.logging.Logger;
 
-
-import fr.uge.net.tcp.server.replies.LoginResponse;
-import fr.uge.net.tcp.server.replies.Response;
-import fr.uge.net.tcp.server.replies.Response.Codes;
+import fr.uge.net.tcp.responses.Response.Codes;
 
 class ServerOperations {
 
@@ -41,33 +37,29 @@ class ServerOperations {
 		}
 		
 	}
-	//ID_PRIVATE(8) = 8 (OPCODE) login_requester (STRING) login_target (STRING) connect_id (LONG)
-	//LOGIN_PRIVATE(9) = 9 (OPCODE) connect_id (LONG)
 
 	
 	static private final Logger logger = Logger.getLogger(ServerOperations.class.getName());
 	private final HashMap<SocketChannel, ClientConnexions >clients;
 	private final HashMap<Long, SimpleEntry<PrivateConnexionSocket, PrivateConnexionSocket>> currentPrivateConnexions;
 	
-	//<SocketChannel, String, list<id> > clients;
-	//id  <<sc1,true>   <sc2,true> >  
 
 	ServerOperations() {
 		this.clients = new HashMap<SocketChannel, ClientConnexions>();
 		this.currentPrivateConnexions = new HashMap<Long, SimpleEntry<PrivateConnexionSocket, PrivateConnexionSocket>>();
 	}
 
-	Response regesterLogin(String login, SocketChannel sc) {
+	Codes regesterLogin(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 		Objects.requireNonNull(sc);
 
 		for(var connexion : clients.values()) {
 			if(connexion.login.equals(login)) {
-				return new LoginResponse(Codes.LOGIN_REFUSED);
+				return Codes.LOGIN_REFUSED;
 			}
 		}
 		clients.put(sc, new ClientConnexions(login));
-		return new LoginResponse(Codes.LOGIN_ACCEPTED);
+		return Codes.LOGIN_ACCEPTED;
 	}
 
 	void registerPrivateConnection(long connectId, SocketChannel requesterSC, SocketChannel targetSC) {
@@ -89,14 +81,13 @@ class ServerOperations {
 			return;
 		}
 		if(pc.getKey().context != null) {
-			System.out.println("silently Close 1");
 			pc.getKey().context.silentlyClose();	
 		}
 		if(pc.getValue().context != null) {
-			System.out.println("silently Close ");
 			pc.getValue().context.silentlyClose();
 		}
 		currentPrivateConnexions.remove(id);
+
 	}
 	
 	
@@ -145,10 +136,6 @@ class ServerOperations {
 		return new SimpleEntry<>(pc.getKey().context,pc.getValue().context);
 	}
 	
-	
-	
-	
-	
-	
+
 	
 }

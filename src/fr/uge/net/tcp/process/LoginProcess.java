@@ -1,9 +1,10 @@
 package fr.uge.net.tcp.process;
 
 import java.nio.ByteBuffer;
-import java.nio.channels.SelectionKey;
 import java.util.Objects;
 import java.util.function.Consumer;
+
+import fr.uge.net.tcp.readers.StringReader;
 
 
 
@@ -11,7 +12,7 @@ import java.util.function.Consumer;
  * process Buffer with the format : String
  */
 
-public class LoginProcess implements ProcessInt  {
+public class LoginProcess implements Process  {
 
 	
 	private boolean doneProcessing = false;
@@ -36,10 +37,7 @@ public class LoginProcess implements ProcessInt  {
 		}
 		return false;
 	}
-	
-	
-	
-	
+
 	private boolean process(ByteBuffer bbin) {
 		if (!doneProcessing) {
 			switch (stringReader.process(bbin)) {

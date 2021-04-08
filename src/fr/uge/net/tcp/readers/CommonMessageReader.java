@@ -1,4 +1,4 @@
-package fr.uge.net.tcp.process;
+package fr.uge.net.tcp.readers;
 
 abstract class CommonMessageReader<T> {
 	enum State {

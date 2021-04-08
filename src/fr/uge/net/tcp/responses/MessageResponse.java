@@ -1,4 +1,4 @@
-package fr.uge.net.tcp.server.replies;
+package fr.uge.net.tcp.responses;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;

@@ -1,4 +1,4 @@
-package fr.uge.net.tcp.process;
+package fr.uge.net.tcp.readers;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
@@ -8,13 +8,13 @@ import java.util.Objects;
  * String - String - T
  * @param <T> type of the value (or the message) sent in this buffer
  */
-class PrivateMessageReader<T> extends CommonMessageReader<T> implements Reader<String> {
+public class PrivateMessageReader<T> extends CommonMessageReader<T> implements Reader<String> {
 
 	private String targetLogin = null;
 
 	private boolean readTargetLogIn = false;
 	private final Reader<T> elemReader; 
-	PrivateMessageReader(Reader<T> elemReader){
+	public PrivateMessageReader(Reader<T> elemReader){
 		this.elemReader = Objects.requireNonNull(elemReader);
 	}
 	
@@ -61,16 +61,16 @@ class PrivateMessageReader<T> extends CommonMessageReader<T> implements Reader<S
 		throw new IllegalStateException("use getMessage() or getLogin() or getTargetLogin()");
 	}
 
-	 T getMessage() {
+	public T getMessage() {
 		return super.getMessage();
 	}
 	
 	
-	 String getSenderLogin() {
+	 public String getSenderLogin() {
 		return getLogin();
 	}
 	
-	 String getTargetLogin() {
+	 public String getTargetLogin() {
 		if(state != State.DONE) {
 			throw new IllegalStateException("Process not done");
 		}

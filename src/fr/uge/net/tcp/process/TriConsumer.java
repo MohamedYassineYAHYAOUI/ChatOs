@@ -1,7 +1,6 @@
 package fr.uge.net.tcp.process;
 
 import java.util.Objects;
-import java.util.function.Function;
 
 @FunctionalInterface
  public interface TriConsumer<T, U, V> {

@@ -1,10 +1,10 @@
-package fr.uge.net.tcp.process;
+package fr.uge.net.tcp.readers;
 
 import java.nio.ByteBuffer;
 
 
 
-class IntReader implements Reader<Integer> {
+public class IntReader implements Reader<Integer> {
 
     private enum State {DONE,WAITING,ERROR};
 

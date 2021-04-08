@@ -2,7 +2,9 @@ package fr.uge.net.tcp.process;
 
 import java.nio.ByteBuffer;
 import java.util.Objects;
-import java.util.function.BiConsumer;
+
+import fr.uge.net.tcp.readers.PrivateMessageReader;
+import fr.uge.net.tcp.readers.Reader;
 
 /**
  * 
@@ -13,7 +15,7 @@ import java.util.function.BiConsumer;
  * @param <T>
  */
 
-public class GenericValueProcess<T> implements ProcessInt {
+public class GenericValueProcess<T> implements Process {
 
 	private boolean doneProcessing = false;
 	private final PrivateMessageReader<T> pvmessageReader;
@@ -32,19 +34,14 @@ public class GenericValueProcess<T> implements ProcessInt {
 	@Override
 	public boolean executeProcess(ByteBuffer bbin) {
 		if (process(bbin)) {
-			System.out.println(">>>>>>>>>> avant");
 			toExecte.accept(getLogin(),getTargetLogin(), getValue());
-			System.out.println(">>>>>>>>>> aprés");
 			reset();
 			return true;
 		}
 		return false;
 	}
 
-
 	private boolean process(ByteBuffer bbin) {
-		// assert(!doneProcessingLogin && !doneProcessingPacket &&
-		// !doneProcessingPrivateConnexion);
 		Objects.requireNonNull(bbin);
 		if (!doneProcessing) {
 			switch (pvmessageReader.process(bbin)) {
@@ -83,8 +80,8 @@ public class GenericValueProcess<T> implements ProcessInt {
 
 	@Override
 	public String getMessage() {
-		// TODO Auto-generated method stub
-		return null;
+		throw new UnsupportedOperationException("use getValue()");
+
 	}
 
 	@Override

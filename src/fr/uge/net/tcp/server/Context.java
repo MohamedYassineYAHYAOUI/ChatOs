@@ -13,14 +13,13 @@ import java.util.logging.Logger;
 
 import fr.uge.net.tcp.process.GenericValueProcess;
 import fr.uge.net.tcp.process.LoginProcess;
-import fr.uge.net.tcp.process.LongReader;
+import fr.uge.net.tcp.readers.LongReader;
 import fr.uge.net.tcp.process.MessageProcess;
 import fr.uge.net.tcp.process.OpCodeProcess;
 import fr.uge.net.tcp.process.Process;
-import fr.uge.net.tcp.process.ProcessInt;
-import fr.uge.net.tcp.process.StringReader;
-import fr.uge.net.tcp.server.replies.Response;
-import fr.uge.net.tcp.server.replies.Response.Codes;
+import fr.uge.net.tcp.readers.StringReader;
+import fr.uge.net.tcp.responses.Response;
+import fr.uge.net.tcp.responses.Response.Codes;
 
 class Context {
 
@@ -34,9 +33,9 @@ class Context {
 
 	final private Queue<Response> queue = new LinkedList<>();
 	final private Server server;
-	final private Process process ;
+
 	private final OpCodeProcess codeProcess = new OpCodeProcess();
-	private ProcessInt processInt;
+	private Process process;
 	private boolean doneProcessing = true;
 	private boolean mainSocketForClient = false;
 
@@ -52,7 +51,6 @@ class Context {
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
 		this.server = server;
-		this.process= new Process();
 	}
 	
 	
@@ -78,40 +76,39 @@ class Context {
 			if(codeProcess.receivedCode() && doneProcessing) {
 				switch(codeProcess.getProcessCode()) {
 				case REQUEST_SERVER_CONNECTION:
-					processInt = new LoginProcess(codeProcess,  login->{
+					process = new LoginProcess(codeProcess,  login->{
 						server.registerLogin(login, key);
 						mainSocketForClient = true;
 					});
 					break;
 					
 				case PUBLIC_MESSAGE_SENT:
-					processInt = new MessageProcess(codeProcess, (login, msg)->server.broadcast(login, msg , key));
+					process = new MessageProcess(codeProcess, (login, msg)->server.broadcast(login, msg , key));
 					break;
 					
 				case PRIVATE_MESSAGE_SENT:
-					processInt = new GenericValueProcess<>(codeProcess, new StringReader(), 
+					process = new GenericValueProcess<>(codeProcess, new StringReader(), 
 							(login, target, msg)-> server.sendPrivateMessage(login, target, msg, key) );
 					break;
 				case REQUEST_PRIVATE_CONNEXION:
-					processInt = new MessageProcess(codeProcess, 
+					process = new MessageProcess(codeProcess, 
 							(login, target)-> server.redirectPrivateConnexionRequest(login, target , key, Codes.REQUEST_PRIVATE_CONNEXION, false));
 					break;
 				case REFUSE_PRIVATE_CONNEXION:
-					processInt = new MessageProcess(codeProcess, 
+					process = new MessageProcess(codeProcess, 
 							(login, target)-> server.redirectPrivateConnexionRequest(login, target, key, Codes.REFUSE_PRIVATE_CONNEXION, true));
 					break;
 					
 				case ACCEPT_PRIVATE_CONNEXION:
-					processInt = new MessageProcess(codeProcess, 
+					process = new MessageProcess(codeProcess, 
 							(login, target)->server.redirectIdPacket(login, target, key));
 					break;
 					
 				case LOGIN_PRIVATE:
-					System.out.println("LOGIN PRIVATE");
-					processInt = new LongReader(codeProcess, id-> server.establishConnection(id, key) );
+					process = new LongReader(codeProcess, id-> server.establishConnection(id, key) );
 					break;
 				case DISCONNECT_PRIVATE:
-					processInt = new LongReader(codeProcess, id->server.removeClient(id));
+					process = new LongReader(codeProcess, id->server.removeClient(id));
 					
 					break;
 				default:
@@ -120,20 +117,22 @@ class Context {
 				
 			}
 			
-			if(doneProcessing = processInt.executeProcess(bbin)) {
+			if(doneProcessing = process.executeProcess(bbin)) {
 				updateInterestOps();
 			}
 
 		} catch (IllegalArgumentException e) {
 			logger.warning(e.getMessage());
-			process.reset();
-
 		} catch (IllegalStateException  | IOException  e) {
 			logger.warning(e.getMessage());
-			process.reset();
+			
 			silentlyClose();
 			closed = true;
 			key.cancel(); 
+		}finally {
+			if(process != null) {
+				process.reset();
+			}
 		}
 	}
 	
@@ -183,7 +182,6 @@ class Context {
 			intrestOps |= SelectionKey.OP_WRITE;
 		}
 		if (intrestOps == 0) {
-			System.out.println("INTREST OPS == 0");
 			server.removeClient(key);
 			silentlyClose();
 			
@@ -202,7 +200,6 @@ class Context {
 	 */
 
 	void doWrite() throws IOException {
-		
 		processOut();
 		bbout.flip();
 		sc.write(bbout);
@@ -253,15 +250,11 @@ class Context {
 		if (sc.read(bbin) == -1) {
 			closed = true;
 		}
-		if(privateConnetion == null) {
-			System.out.println("PRIVATE CONTEXT IS NULL");
-		}
 		if(!mainSocketForClient && privateConnetion!=null) {
 			//privateConnetion.queueResponse(res);
 			privateConnetion.processOutPrivate(bbin);
 			privateConnetion.updateInterestOps();
 		}else {
-			System.out.println("Process IN");
 			processIn();
 		}
 		updateInterestOps();

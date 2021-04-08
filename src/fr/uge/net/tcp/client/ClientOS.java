@@ -3,30 +3,22 @@ package fr.uge.net.tcp.client;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-import java.nio.ByteBuffer;
+
 import java.nio.channels.Channel;
-import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.nio.charset.Charset;
-import java.nio.file.Path;
 import java.util.AbstractMap.SimpleEntry;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Scanner;
-import java.util.Set;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.replies.MessageResponse;
-import fr.uge.net.tcp.server.replies.Response.Codes;
+import fr.uge.net.tcp.responses.MessageResponse;
+import fr.uge.net.tcp.responses.Response.Codes;
 
 public class ClientOS {
-	// static private int MAX_LOGIN_SIZE = 30;
-	static private final Charset UTF8 = Charset.forName("UTF8");
 	static private Logger logger = Logger.getLogger(ClientOS.class.getName());
 
 	private final SocketChannel sc;
@@ -35,17 +27,12 @@ public class ClientOS {
 	private final String login;
 	private final Thread console;
 	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
-	private final HashMap<String, SimpleEntry<PrivateContext, String>> privateConnexion = new HashMap<>(); 
-	
-	
-	private int threadsCounter =0;																							
-																									
-	private final Path folderPath;
+	private final HashMap<String, SimpleEntry<PrivateContext, String>> privateConnexion = new HashMap<>();
+
 	private Context uniqueContext;
 	private final MessageResponse.Builder packetBuilder;
 
-	public ClientOS(String login, Path folderPath, InetSocketAddress serverAddress) throws IOException {
-		this.folderPath = Objects.requireNonNull(folderPath);
+	public ClientOS(String login, InetSocketAddress serverAddress) throws IOException {
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
 		this.packetBuilder = new MessageResponse.Builder();
@@ -66,7 +53,6 @@ public class ClientOS {
 					sendCommand(msg);
 				}
 			}
-
 			return;
 		} catch (InterruptedException e) {
 			logger.info("Console thread has been interrupted");
@@ -99,46 +85,38 @@ public class ClientOS {
 
 	private void processConnection() {
 		synchronized (serverAddress) {
-
 			packetBuilder.setPacketCode(Codes.REQUEST_SERVER_CONNECTION).setLogin(login);
 			uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
-
 		}
 		selector.wakeup();
 	}
 
-	
 	void removePrivateConnection(String targetLogin) {
 		privateConnexion.remove(targetLogin);
 	}
 
-	
 	void createPrivateConnection(String targetLogin, long id) {
 		SocketChannel sc;
 		try {
-
 			sc = SocketChannel.open();
-
 			sc.configureBlocking(false);
 			var key = sc.register(selector, SelectionKey.OP_CONNECT);
 			String msg = null;
 			var pc = privateConnexion.get(targetLogin);
-			if(pc != null) {
+			if (pc != null) {
 				msg = pc.getValue();
 			}
 			synchronized (serverAddress) {
 				sc.connect(serverAddress);
 				var pccontext = PrivateContext.CreateContext(key, targetLogin, id, msg);
-
-				//pccontext.doWrite();
 				key.attach(pccontext);
-				privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String >(pccontext, null));
+				privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String>(pccontext, null));
 
 			}
-			//selector.wakeup();
-			
+
+
 		} catch (IOException e) {
-			logger.warning("error while creating private connection "+e.getMessage());
+			logger.warning("error while creating private connection " + e.getMessage());
 		}
 	}
 
@@ -172,20 +150,17 @@ public class ClientOS {
 							uniqueContext.doWrite();
 							uniqueContext.setCanSendCommand(true);
 						}
-
-						//commandQueue.poll();
 						return;
 					}
 				}
 			} catch (Exception e) {
 				uniqueContext.setCanSendCommand(true);
-				logger.warning("Thread private connexion inturrepted "+e);
+				logger.warning("Thread private connexion inturrepted " + e);
 				return;
 			}
 		}).start();
 
 	}
-	
 
 	/**
 	 * Processes the command from commandQueue
@@ -209,18 +184,16 @@ public class ClientOS {
 						continue;
 					}
 					var pc = privateConnexion.get(targetLogin);
-					if(tmp.length == 1 && pc != null) {
-						if(pc.getKey() != null) {
-							uniqueContext.queueMessage(packetBuilder.setPacketCode(Codes.DISCONNECT_PRIVATE).
-									setId(pc.getKey().getId()).build().getResponseBuffer());
+					if (tmp.length == 1 && pc != null) {
+						if (pc.getKey() != null) {
+							uniqueContext.queueMessage(packetBuilder.setPacketCode(Codes.DISCONNECT_PRIVATE)
+									.setId(pc.getKey().getId()).build().getResponseBuffer());
 						}
 						removePrivateConnection(targetLogin);
 						continue;
 					}
 					String message = msg.substring(targetLogin.length() + 2);
-					
-					
-					
+
 					if (pc == null) { // no request for the target
 						packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
 								.setTargetLogin(targetLogin); // buffer builder
@@ -228,16 +201,18 @@ public class ClientOS {
 					} else {
 						if (pc.getKey() != null) { // connection established
 							pc.getKey().queueMessage(packetBuilder.setMessage(message).build().getResponseBuffer());
-						} 
+						}
 						continue;
 					}
 
 				} else if (msg.startsWith("@")) {// message privée
 					targetLogin = msg.split(" ")[0].substring(1);
+					if (targetLogin.equals(login)) {
+						continue;
+					}
 					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
 							.setMessage(msg.substring(targetLogin.length() + 2)); // buffer builder
 				} else { // message public
-
 					packetBuilder.setPacketCode(Codes.PUBLIC_MESSAGE_SENT).setLogin(login).setMessage(msg);
 				}
 				if (targetLogin != null && targetLogin.equals(login)) {
@@ -257,19 +232,13 @@ public class ClientOS {
 	public void launch() throws IOException {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
-
 		uniqueContext = new Context(key, login, this);
-
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);
-
 		console.start();
 
 		while (!Thread.interrupted()) {
 			try {
-				 printKeys(); // for debug
-				 System.out.println("Starting select");
-
 				if (!sc.isOpen()) {
 					selector.close();
 					console.interrupt();
@@ -279,8 +248,6 @@ public class ClientOS {
 				if (uniqueContext.isConnected() && uniqueContext.canSendCommand()) {
 					processCommands();
 				}
-				 System.out.println("Select finished");
-
 			} catch (UncheckedIOException tunneled) {
 				throw tunneled.getCause();
 			}
@@ -288,20 +255,16 @@ public class ClientOS {
 	}
 
 	private void treatKey(SelectionKey key) {
-		 printSelectedKey(key);
-		
 		var context = (GeneralContext) key.attachment();
 		try {
 			if (key.isValid() && key.isConnectable()) {
 				context.doConnect();
 			}
 			if (key.isValid() && key.isWritable()) {
-
 				context.doWrite();
 			}
 			if (key.isValid() && key.isReadable()) {
 				context.doRead();
-				
 			}
 		} catch (IOException ioe) {
 			// lambda call in select requires to tunnel IOException
@@ -321,85 +284,16 @@ public class ClientOS {
 	}
 
 	public static void main(String[] args) throws NumberFormatException, IOException {
-		if (args.length != 4) {
+		if (args.length != 3) {
 			usage();
 			return;
 		}
-		new ClientOS(args[1], Path.of(args[0]), new InetSocketAddress(args[2], Integer.parseInt(args[3]))).launch();
+		new ClientOS(args[0], new InetSocketAddress(args[1], Integer.parseInt(args[2]))).launch();
 	}
 
 	private static void usage() {
-		System.out.println("Usage : ClientOS folder login hostname port");
+		System.out.println("Usage : ClientOS login hostname port");
 	}
 
-	/***
-	 * Theses methods are here to help understanding the behavior of the selector
-	 ***/
-
-	private String interestOpsToString(SelectionKey key) {
-		if (!key.isValid()) {
-			return "CANCELLED";
-		}
-		int interestOps = key.interestOps();
-		ArrayList<String> list = new ArrayList<>();
-		if ((interestOps & SelectionKey.OP_ACCEPT) != 0)
-			list.add("OP_ACCEPT");
-		if ((interestOps & SelectionKey.OP_READ) != 0)
-			list.add("OP_READ");
-		if ((interestOps & SelectionKey.OP_WRITE) != 0)
-			list.add("OP_WRITE");
-		return String.join("|", list);
-	}
-
-	public void printKeys() {
-		Set<SelectionKey> selectionKeySet = selector.keys();
-		if (selectionKeySet.isEmpty()) {
-			System.out.println("The selector contains no key : this should not happen!");
-			return;
-		}
-		System.out.println("The selector contains:");
-		for (SelectionKey key : selectionKeySet) {
-			SelectableChannel channel = key.channel();
-			if (channel instanceof ServerSocketChannel) {
-				System.out.println("\tKey for ServerSocketChannel : " + interestOpsToString(key));
-			} else {
-				SocketChannel sc = (SocketChannel) channel;
-				System.out.println("\tKey for Client " + remoteAddressToString(sc) + " : " + interestOpsToString(key));
-			}
-		}
-	}
-
-	private String remoteAddressToString(SocketChannel sc) {
-		try {
-			return sc.getRemoteAddress().toString();
-		} catch (IOException e) {
-			return "???";
-		}
-	}
-
-	public void printSelectedKey(SelectionKey key) {
-		SelectableChannel channel = key.channel();
-		if (channel instanceof ServerSocketChannel) {
-			System.out.println("\tServerSocketChannel can perform : " + possibleActionsToString(key));
-		} else {
-			SocketChannel sc = (SocketChannel) channel;
-			System.out.println(
-					"\tClient " + remoteAddressToString(sc) + " can perform : " + possibleActionsToString(key));
-		}
-	}
-
-	private String possibleActionsToString(SelectionKey key) {
-		if (!key.isValid()) {
-			return "CANCELLED";
-		}
-		ArrayList<String> list = new ArrayList<>();
-		if (key.isAcceptable())
-			list.add("ACCEPT");
-		if (key.isReadable())
-			list.add("READ");
-		if (key.isWritable())
-			list.add("WRITE");
-		return String.join(" and ", list);
-	}
 
 }

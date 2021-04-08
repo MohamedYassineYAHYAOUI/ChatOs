@@ -4,6 +4,8 @@ import java.nio.ByteBuffer;
 import java.util.Objects;
 import java.util.function.BiConsumer;
 
+import fr.uge.net.tcp.readers.MessageReader;
+
 
 /**
  * process Buffer with the format : String - String
@@ -11,7 +13,7 @@ import java.util.function.BiConsumer;
  * login - target
  */
 
-public class MessageProcess implements ProcessInt {
+public class MessageProcess implements Process {
 
 	private boolean doneProcessing = false;
 	private final MessageReader messageReader;

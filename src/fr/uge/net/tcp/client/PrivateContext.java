@@ -5,14 +5,12 @@ import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.charset.Charset;
 import java.util.Objects;
-import java.util.logging.Logger;
 
-import fr.uge.net.tcp.server.replies.MessageResponse;
-import fr.uge.net.tcp.server.replies.Response.Codes;
+import fr.uge.net.tcp.responses.MessageResponse;
+import fr.uge.net.tcp.responses.Response.Codes;
 
 class PrivateContext extends CommonContext implements GeneralContext{
 
-	static private final Logger logger = Logger.getLogger(Context.class.getName());
 	static private final Charset UTF8 = Charset.forName("UTF8");
 	static private final MessageResponse.Builder packetBuilder = new MessageResponse.Builder();
 	
@@ -35,45 +33,19 @@ class PrivateContext extends CommonContext implements GeneralContext{
 		var bb = packetBuilder.build().getResponseBuffer().flip();
 		pc.bbout.put(bb);
 		
-		//pc.queueMessage(packetBuilder.build().getResponseBuffer());
 		return pc;
 
 	}
 
-	/**
-	 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
-	 *
-	 * @param bb
-	 */
-	void queueMessage(ByteBuffer bb) {
-		synchronized (queue) {
-			System.out.println("taille bb avant "+bb);
-			bb.flip();
-			queue.add(bb);
-			processOut();
-			bb.compact();
-			updateInterestOps();
-			System.out.println("taille bb aprés "+bb);
-		}
-	}
+
 
 	/**
 	 * Try to fill bbout from the message queue
 	 *
 	 */
-	private void processOut() {
-		while (!queue.isEmpty() && established) {
-			System.out.println("dans while");
-			var bb = queue.peek();
-			if (bb.remaining() <= bbout.remaining()) {
-				System.out.println("dans if");
-				queue.remove();
-				bbout.put(bb);
-				System.out.println(bbout);
-			} else {
-				System.out.println("dans break ");
-				break;
-			}
+	void processOut() {
+		if(established) {
+			super.processOut();
 		}
 	}
 
@@ -87,21 +59,19 @@ class PrivateContext extends CommonContext implements GeneralContext{
 			return;
 		}
 		if(established) {
-			System.out.println("CONNEXION ETABLI");
 			bbin.flip();
-			System.out.println("> message from " + targetLogin + " on the private connexion:" +UTF8.decode(bbin).toString());
+			System.out.println("> message from " + targetLogin + " on the private connexion: " +UTF8.decode(bbin).toString());
 			bbin.compact();
 		}else {
 			try {
 				if(!codeProcess.process(bbin)) {
 					return;
 				}
-				System.out.println("connexion non etabli");
+
 				if(codeProcess.receivedCode() && ( codeProcess.getProcessCode() == Codes.ESTABLISHED)) {
 
 					established = true;
 					if (initialMsg != null) {
-						System.out.println("DIFFRENT FORM NULL");
 						var bb = ByteBuffer.allocate(Character.BYTES * initialMsg.length());
 						bb.put(UTF8.encode(initialMsg));
 						queueMessage(bb);
@@ -125,24 +95,6 @@ class PrivateContext extends CommonContext implements GeneralContext{
 		updateInterestOps();
 	}
 
-	/**
-	 * Performs the write action on sc
-	 *
-	 * The convention is that both buffers are in write-mode before the call to
-	 * doWrite and after the call
-	 *
-	 * @throws IOException
-	 */
 
-	public void doWrite() throws IOException {
-
-		bbout.flip();
-
-		sc.write(bbout);
-		bbout.compact();
-		processOut();
-		
-		updateInterestOps();
-	}
 
 }

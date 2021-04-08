@@ -40,7 +40,56 @@ abstract class CommonContext {
 			// ignore exception
 		}
 	}
+	
+	/**
+	 * Try to fill bbout from the message queue
+	 *
+	 */
+	void processOut() {
+		while (!queue.isEmpty()) {
+			var bb = queue.peek();
+			if (bb.remaining() <= bbout.remaining()) {
+				queue.remove();
+				bbout.put(bb);
+			} else {
+				break;
+			}
+		}
+	}
 
+	/**
+	 * Performs the write action on sc
+	 *
+	 * The convention is that both buffers are in write-mode before the call to
+	 * doWrite and after the call
+	 *
+	 * @throws IOException
+	 */
+
+	public void doWrite() throws IOException {
+		bbout.flip();
+		sc.write(bbout);
+		bbout.compact();
+		processOut();
+		updateInterestOps();
+	}
+	
+	
+	/**
+	 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
+	 *
+	 * @param bb
+	 */
+	void queueMessage(ByteBuffer bb) {
+		synchronized (queue) {
+			bb.flip();
+			queue.add(bb);
+			processOut();
+			bb.compact();
+			updateInterestOps();
+		}
+	}
+	
 	
 	/**
 	 * Update the interestOps of the key looking only at values of the boolean

@@ -3,9 +3,10 @@ package fr.uge.net.tcp.process;
 import java.nio.ByteBuffer;
 import java.util.Objects;
 
-import fr.uge.net.tcp.server.replies.Response.Codes;
+import fr.uge.net.tcp.readers.IntReader;
+import fr.uge.net.tcp.responses.Response.Codes;
 
-public class OpCodeProcess implements ProcessInt {
+public class OpCodeProcess implements Process {
 
 	private final IntReader intReader = new IntReader();
 	private boolean receivedCode = false;
