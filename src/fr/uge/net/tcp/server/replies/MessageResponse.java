@@ -61,10 +61,7 @@ public class MessageResponse implements Response {
 		}
 
 		public MessageResponse build() {
-			if (messageCode == null) {
-				resetBuilder();
-				throw new IllegalStateException("packet is missing code");
-			} 
+
 			MessageResponse messageResponse = new MessageResponse(messageCode, login, targetLogin, message,
 					connexionId, setId);
 			resetBuilder();
@@ -107,7 +104,10 @@ public class MessageResponse implements Response {
 
 	@Override
 	public int size() {
-		var size = Integer.BYTES;
+		int size =0;
+		if(messageCode != null) {
+			size += Integer.BYTES;
+		}
 		if (login != null) {
 			size += Integer.BYTES + login.length() * Character.BYTES;
 		}
@@ -128,8 +128,9 @@ public class MessageResponse implements Response {
 	@Override
 	public ByteBuffer getResponseBuffer() {
 		var internalBuffer = ByteBuffer.allocate(size());
-		internalBuffer.putInt(messageCode.getCode());
-
+		if(messageCode != null) {
+			internalBuffer.putInt(messageCode.getCode());
+		}
 		if (login != null) {
 			internalBuffer.putInt(login.length()).put(UTF8.encode(login));
 		}

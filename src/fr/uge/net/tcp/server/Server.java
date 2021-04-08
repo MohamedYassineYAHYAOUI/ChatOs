@@ -76,13 +76,14 @@ class Server {
 		if (serverOperations.establishConnection(context, connectId)) {
 			var clientsChannels = serverOperations.getClientsContext(connectId);
 			Packetbuilder.setPacketCode(Codes.ESTABLISHED);
+			System.out.println("SET CONNECTIOn");
 			clientsChannels.getKey().setPrivateConnection(clientsChannels.getValue());
 
 			clientsChannels.getKey().queueResponse(Packetbuilder.build());
 
 			Packetbuilder.setPacketCode(Codes.ESTABLISHED);
-			clientsChannels.getValue().queueResponse(Packetbuilder.build());
 			clientsChannels.getValue().setPrivateConnection(clientsChannels.getKey());
+			clientsChannels.getValue().queueResponse(Packetbuilder.build());
 		}
 	}
 

@@ -26,7 +26,7 @@ import fr.uge.net.tcp.server.replies.Response.Codes;
 
 public class ClientOS {
 	// static private int MAX_LOGIN_SIZE = 30;
-	static private final Charset UTF8 = Charset.forName("utf8");
+	static private final Charset UTF8 = Charset.forName("UTF8");
 	static private Logger logger = Logger.getLogger(ClientOS.class.getName());
 
 	private final SocketChannel sc;
@@ -115,7 +115,6 @@ public class ClientOS {
 
 	
 	void createPrivateConnection(String targetLogin, long id) {
-
 		SocketChannel sc;
 		try {
 
@@ -132,12 +131,12 @@ public class ClientOS {
 				sc.connect(serverAddress);
 				var pccontext = PrivateContext.CreateContext(key, targetLogin, id, msg);
 
-				pccontext.doWrite();
+				//pccontext.doWrite();
 				key.attach(pccontext);
 				privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String >(pccontext, null));
 
 			}
-			selector.wakeup();
+			//selector.wakeup();
 			
 		} catch (IOException e) {
 			logger.warning("error while creating private connection "+e.getMessage());
@@ -207,8 +206,7 @@ public class ClientOS {
 				if (msg.startsWith("/")) {// connexion privée /login_target file
 
 					targetLogin = msg.split(" ")[0].substring(1); // target Login
-					var message = msg.substring(targetLogin.length()) + 2;
-
+					String message = msg.substring(targetLogin.length() + 2);
 					if (targetLogin.equals(login)) {
 						continue;
 					}
@@ -219,10 +217,9 @@ public class ClientOS {
 								.setTargetLogin(targetLogin); // buffer builder
 						privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String>(null, message));
 					} else {
-						if (pc.getKey() == null) { // request in progress
-						} else { // connexion established
-							pc.getKey().queueMessage(UTF8.encode(message));
-						}
+						if (pc.getKey() != null) { // connection established
+							pc.getKey().queueMessage(packetBuilder.setMessage(message).build().getResponseBuffer());
+						} 
 						continue;
 					}
 
@@ -252,10 +249,7 @@ public class ClientOS {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
 
-		// privateConnections = new PrivateConnectionTraitement(serverAddress, buff ->
-		// uniqueContext.queueMessage(buff));
 		uniqueContext = new Context(key, login, this);
-		// privateConnections =
 
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);

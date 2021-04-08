@@ -98,14 +98,6 @@ class Context extends CommonContext implements GeneralContext{
 						System.out.println("login " + requester + " login_target " + target + " connect id " + id);
 						
 						clientOs.createPrivateConnection(requester.equals(login) ? target : requester, id);
-						//history vrai
-						
-						
-						/*
-						pcTraitaitement.createPrivateConnection(requester.equals(login) ? target : requester, id);
-
-						pcTraitaitement.wakeUpConsumers(requester.equals(login) ? target : requester);
-					*/
 					
 					});
 					break;

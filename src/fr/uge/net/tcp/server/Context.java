@@ -71,7 +71,6 @@ class Context {
 			return;
 		}
 		try {	
-			System.out.println("PROCESS CODE");
 			if(!codeProcess.process(bbin)) {
 				return;
 			}
@@ -106,11 +105,12 @@ class Context {
 					processInt = new MessageProcess(codeProcess, 
 							(login, target)->server.redirectIdPacket(login, target, key));
 					break;
+					
 				case LOGIN_PRIVATE:
 					System.out.println("LOGIN PRIVATE");
 					processInt = new LongReader(codeProcess, (id)-> server.establishConnection(id, key) );
 					break;
-				
+					
 				default:
 					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
 				}
@@ -226,10 +226,12 @@ class Context {
 	
 	
 	private void processOutPrivate(ByteBuffer bb) {
-		while(bbout.remaining() >= bb.position()) {
+		if(bbout.remaining() >= bb.position()) {
+			System.out.println("writing in BBOUT");
 			bbout.put(bb.flip());
 			bb.compact();
 		}
+		
 	}
 	
 	
@@ -246,9 +248,16 @@ class Context {
 		if (sc.read(bbin) == -1) {
 			closed = true;
 		}
+		if(privateConnetion == null) {
+			System.out.println("PRIVATE CONTEXT IS NULL");
+		}
 		if(!mainSocketForClient && privateConnetion!=null) {
+			System.out.println("DO READ PRocessOUT private");
+			
 			privateConnetion.processOutPrivate(bbin);
+			privateConnetion.updateInterestOps();
 		}else {
+			System.out.println("Process IN");
 			processIn();
 		}
 		

@@ -45,12 +45,16 @@ class PrivateContext extends CommonContext implements GeneralContext{
 	 */
 	void queueMessage(ByteBuffer bb) {
 		synchronized (queue) {
+			System.out.println("taille bb avant "+bb);
 			bb.flip();
 			queue.add(bb);
 			processOut();
 			bb.compact();
 			updateInterestOps();
+			System.out.println("taille bb aprés "+bb);
+			
 		}
+		
 	}
 
 	/**
@@ -59,72 +63,59 @@ class PrivateContext extends CommonContext implements GeneralContext{
 	 */
 	private void processOut() {
 		while (!queue.isEmpty() && established) {
+			System.out.println("dans while");
 			var bb = queue.peek();
 			if (bb.remaining() <= bbout.remaining()) {
+				System.out.println("dans if");
 				queue.remove();
 				bbout.put(bb);
+				System.out.println(bbout);
 			} else {
+				System.out.println("dans break ");
 				break;
 			}
 		}
 	}
 
-	private void processInNotEstablished() throws IOException {
-		if(closed) {
-			return;
-		}
-		try {
-			if(!codeProcess.process(bbin)) {
-				return;
-			}
-			System.out.println("connexion non etabli");
-			if(codeProcess.receivedCode() && ( codeProcess.getProcessCode() == Codes.ESTABLISHED)) {
-				if (initialMsg != null) {
-					var bb = ByteBuffer.allocate(Integer.BYTES + (Character.BYTES * initialMsg.length()));
-					bb.put(UTF8.encode(initialMsg));
-					queueMessage(bb);
-				}
-				established = true;
-			}
-
-		}catch(IllegalStateException e) {
-
-			silentlyClose();
-			closed = true;
-		}finally {
-			codeProcess.reset();
-		}
-			
-
-	}
-
-	private void processInEstablished() throws IOException {
+	private void processIn() throws IOException {
 		if (closed) {
 			return;
 		}
-		var strB = new StringBuilder();
-		bbin.flip();
-		while (true) {
-			var tmp = (char) bbin.get();
-			strB.append(tmp);
-			if (tmp == '\n') {
-				break;
+		if(established) {
+			System.out.println("CONNEXION ETABLI");
+			bbin.flip();
+			System.out.println("> message from " + targetLogin + " on the private connexion:" +UTF8.decode(bbin).toString());
+			bbin.compact();
+		}else {
+			try {
+				if(!codeProcess.process(bbin)) {
+					return;
+				}
+				System.out.println("connexion non etabli");
+				if(codeProcess.receivedCode() && ( codeProcess.getProcessCode() == Codes.ESTABLISHED)) {
+
+					established = true;
+					if (initialMsg != null) {
+						System.out.println("DIFFRENT FORM NULL");
+						var bb = ByteBuffer.allocate(Character.BYTES * initialMsg.length());
+						bb.put(UTF8.encode(initialMsg));
+						queueMessage(bb);
+					}
+				}
+			}catch(IllegalStateException e) {
+				silentlyClose();
+				closed = true;
+			}finally {
+				codeProcess.reset();
 			}
 		}
-		bbin.compact();
-		System.out.println("> message from " + targetLogin + " on the private connexion:" + strB);
 	}
 
 	public void doRead() throws IOException {
 		if (sc.read(bbin) == -1) {
 			closed = true;
 		}
-		if(established) {
-			processInEstablished();
-		}else {
-			processInNotEstablished();
-		}
-		
+		processIn();
 		updateInterestOps();
 	}
 
@@ -138,21 +129,13 @@ class PrivateContext extends CommonContext implements GeneralContext{
 	 */
 
 	public void doWrite() throws IOException {
-		System.out.println(" 664");
+
 		bbout.flip();
-		System.out.println(" qvfefv");
-		if(sc == null) {
-			System.out.println("socket channel ");
-		}
-		if(bbout == null) {
-			System.out.println("BBOUT");
-		}
+
 		sc.write(bbout);
-		System.out.println(" qvfefv");
 		bbout.compact();
 		processOut();
 		
-		System.out.println("Sdfvefv");
 		updateInterestOps();
 	}
 

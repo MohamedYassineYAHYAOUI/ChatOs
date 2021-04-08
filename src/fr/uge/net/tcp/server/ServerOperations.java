@@ -91,8 +91,12 @@ class ServerOperations {
 		for(var connexionId : connexionClient.connexionsIds) {
 			var cp = currentPrivateConnexions.get(connexionId);
 			if(cp != null) {
-				cp.getKey().context.silentlyClose();
-				cp.getValue().context.silentlyClose();
+				if(cp.getKey().context != null) {
+					cp.getKey().context.silentlyClose();	
+				}
+				if(cp.getValue().context != null) {
+					cp.getValue().context.silentlyClose();
+				}
 			}
 			currentPrivateConnexions.remove(connexionId);
 		}
