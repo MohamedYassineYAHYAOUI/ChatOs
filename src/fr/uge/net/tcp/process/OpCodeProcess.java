@@ -12,6 +12,12 @@ public class OpCodeProcess implements Process {
 	private boolean receivedCode = false;
 
 
+	/**
+	 * Treats the process of the byte buffer gives in parameter
+	 * 
+	 * @param bbin
+	 * @return true if the process is done, and false in the others cases
+	 */
 	public boolean process(ByteBuffer bbin) {
 		Objects.requireNonNull(bbin);
 		if (!receivedCode) {
@@ -31,11 +37,20 @@ public class OpCodeProcess implements Process {
 		return true;
 	}
 
+	/**
+	 * Checks if a code was received
+	 * 
+	 * @return true if the code was received and false in others cases
+	 */
 	public boolean receivedCode() {
 		return receivedCode;
 	}
 	
-
+	/**
+	 * Gets the process code
+	 * 
+	 * @return the process code
+	 */
 	public Codes getProcessCode() {
 		var value = intReader.get();
 		for (var code : Codes.values()) {
@@ -52,6 +67,11 @@ public class OpCodeProcess implements Process {
 	}
 
 
+	/**
+	 * Gets the invalid value
+	 * 
+	 * @return the invalid integer for op code process
+	 */
 	public Integer getValue() {
 		throw new UnsupportedOperationException("operation not valide for OpCodeProcess");
 

@@ -62,6 +62,13 @@ class ServerOperations {
 		return Codes.LOGIN_ACCEPTED;
 	}
 
+	/**
+	 * Registers the private connection between the requester and the target with their connect id
+	 * 
+	 * @param connectId the connect id of the private connection
+	 * @param requesterSC the socket channel of the requester client
+	 * @param targetSC the socket channel of the target client
+	 */
 	void registerPrivateConnection(long connectId, SocketChannel requesterSC, SocketChannel targetSC) {
 		var requesterConnection = clients.get(requesterSC);
 		var targetConnection = clients.get(targetSC);
@@ -74,6 +81,11 @@ class ServerOperations {
 				new SimpleEntry<>(new PrivateConnexionSocket() , new PrivateConnexionSocket() ) );
 	}
 	
+	/**
+	 * Removes a client with his id gived in parameter
+	 * 
+	 * @param id
+	 */
 	void removeClient(long id) {
 		var pc = currentPrivateConnexions.get(id);
 	
@@ -90,7 +102,11 @@ class ServerOperations {
 
 	}
 	
-	
+	/**
+	 * Removes a client with his socket channel gived in parameter
+	 * 
+	 * @param sc
+	 */
 	void removeClient(SocketChannel sc) {
 
 		Objects.requireNonNull(sc);
@@ -104,6 +120,14 @@ class ServerOperations {
 		clients.remove(sc);
 	}
 	
+	/**
+	 * Checks if the client connected is same than the login gives in parameter
+	 * using the socket channel
+	 * 
+	 * @param login
+	 * @param sc
+	 * @return true if it's the same and false in the other cases
+	 */
 	boolean validUser(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 		Objects.requireNonNull(sc);
@@ -113,6 +137,13 @@ class ServerOperations {
 	}
 	
 
+	/**
+	 * Checks if the connection is establish
+	 * 
+	 * @param context
+	 * @param connectId
+	 * @return true if the connection is establish and false in the other case
+	 */
 	boolean establishConnection(Context context, long connectId) {
 		Objects.requireNonNull(context);
 		var pc = currentPrivateConnexions.get(connectId);
@@ -128,6 +159,12 @@ class ServerOperations {
 		return pc.getValue().connected && pc.getKey().connected;
 	}
 	
+	/**
+	 * Gets the context of two clients using the connect id
+	 * 
+	 * @param connectId
+	 * @return the contexts of this clients
+	 */
 	SimpleEntry<Context, Context> getClientsContext(long connectId){
 		var pc =  currentPrivateConnexions.get(connectId);
 		if(pc == null) {

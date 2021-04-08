@@ -14,6 +14,11 @@ public class MessageResponse implements Response {
 		private static int MAX_LOGIN_SIZE = 30;
 		private static int MAX_MSG_SIZE = 1024;
 
+		/**
+		 * Sets the target login for the builder of a message response packet 
+		 * @param targetLogin
+		 * @return the builder
+		 */
 		public Builder setTargetLogin(String targetLogin) {
 			Objects.requireNonNull(targetLogin);
 			if (targetLogin.isEmpty() || targetLogin.isBlank()) {
@@ -27,12 +32,24 @@ public class MessageResponse implements Response {
 			return this;
 		}
 
+		/**
+		 * Set the connect id for the builder of the message response packet
+		 * 
+		 * @param connexionId
+		 * @return the builder
+		 */
 		public Builder setId(Long connexionId) {
 			this.connexionId = connexionId;
 			this.setId = true;
 			return this;
 		}
 
+		/**
+		 * Sets the login for the builder of the message response packet
+		 * 
+		 * @param login
+		 * @return the builder
+		 */
 		public Builder setLogin(String login) {
 			Objects.requireNonNull(login);
 			if (login.isEmpty() || login.isBlank()) {
@@ -45,6 +62,12 @@ public class MessageResponse implements Response {
 			return this;
 		}
 
+		/**
+		 * Sets the message for the builder of the message response
+		 * 
+		 * @param message
+		 * @return 
+		 */
 		public Builder setMessage(String message) {
 			Objects.requireNonNull(message);
 			if (message.length() > MAX_MSG_SIZE) {
@@ -54,12 +77,23 @@ public class MessageResponse implements Response {
 			return this;
 		}
 
+		/**
+		 * Sets the code of the packet for the builder of the message response
+		 * 
+		 * @param messageCode
+		 * @return the builder
+		 */
 		public Builder setPacketCode(Codes messageCode) {
 			Objects.requireNonNull(messageCode);
 			this.messageCode = messageCode;
 			return this;
 		}
 
+		/**
+		 * Builsq the message response packet 
+		 * 
+		 * @return the message response packet
+		 */
 		public MessageResponse build() {
 
 			MessageResponse messageResponse = new MessageResponse(messageCode, login, targetLogin, message,
@@ -68,6 +102,9 @@ public class MessageResponse implements Response {
 			return messageResponse;
 		}
 
+		/**
+		 * Resets all fields of the builder
+		 */
 		private void resetBuilder() {
 			targetLogin = null;
 			message = null;
