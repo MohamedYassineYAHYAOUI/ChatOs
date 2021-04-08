@@ -38,12 +38,25 @@ class Server {
 		serverOperations = new ServerOperations();
 	}
 
+	/**
+	 * Register a client in the server
+	 * 
+	 * @param login the login of the client
+	 * @param key the context of the client
+	 */
 	void registerLogin(String login, SelectionKey key) {
 		var context = (Context) key.attachment();
 		var codeResponse = serverOperations.regesterLogin(login, (SocketChannel) key.channel());
 		context.queueResponse(Packetbuilder.setPacketCode(codeResponse).build());
 	}
 
+	/**
+	 * Send a message from a client to all the other clients except himself
+	 * 
+	 * @param login the login of the client which sends the message
+	 * @param message the message to send
+	 * @param key the context of the client which sends the message
+	 */
 	void broadcast(String login, String message, SelectionKey key) {
 		var sc = (SocketChannel) key.channel();
 
@@ -61,15 +74,28 @@ class Server {
 		}
 	}
 
+	/**
+	 * Removes a client with his key
+	 * @param key
+	 */
 	void removeClient(SelectionKey key) {
 		var sc = (SocketChannel) key.channel();
 		serverOperations.removeClient(sc);
 	}
 
+	/**
+	 * Removes a client with his id
+	 * @param id
+	 */
 	void removeClient(long id) {
 		serverOperations.removeClient(id);
 	}
 	
+	/**
+	 * Establishes a private connection using the connect if and the key
+	 * @param connectId
+	 * @param key
+	 */
 	void establishConnection(long connectId, SelectionKey key) {
 		Objects.requireNonNull(key);
 		
@@ -89,6 +115,15 @@ class Server {
 		}
 	}
 
+	/**
+	 * Redirects the private connexion request from the requester client to the target client or vice-versa
+	 * 
+	 * @param login_requester the login of the requester client
+	 * @param login_target the login of the target client
+	 * @param key the context of the requester client
+	 * @param codePacket the code for the type of the packet
+	 * @param reverse a boolean if we want to redirect the pack from the target client to the requester client
+	 */
 	void redirectPrivateConnexionRequest(String login_requester, String login_target, SelectionKey key,
 			Codes codePacket, boolean reverse) {
 		var sc = (SocketChannel) key.channel();
@@ -115,6 +150,13 @@ class Server {
 		}
 	}
 
+	/**
+	 * Redirects the connect id to the requester client and the target client
+	 * 
+	 * @param login_requester the login of the requester client
+	 * @param login_target the login of the target client
+	 * @param key the context
+	 */
 	void redirectIdPacket(String login_requester, String login_target, SelectionKey key) {
 		var target_sc = (SocketChannel) key.channel();
 		var target_context = (Context) key.attachment();
@@ -149,6 +191,14 @@ class Server {
 
 	}
 
+	/**
+	 * Send a private message in a private connexion from the sender client to the target client
+	 * 
+	 * @param senderLogin the sender login
+	 * @param targetLogin the target login
+	 * @param message the message to send
+	 * @param key the context
+	 */
 	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key) {
 		var sc = (SocketChannel) key.channel();
 
@@ -171,6 +221,12 @@ class Server {
 		}
 	}
 
+	/**
+	 * Accept a connection
+	 * 
+	 * @param key
+	 * @throws IOException
+	 */
 	private void doAccept(SelectionKey key) throws IOException {
 		var ssc = (ServerSocketChannel) key.channel();
 		var sc = ssc.accept();
@@ -182,6 +238,11 @@ class Server {
 		}
 	}
 
+	/**
+	 * Launch the server
+	 * 
+	 * @throws IOException
+	 */
 	void launch() throws IOException {
 		serverSocketChannel.configureBlocking(false);
 		serverSocketChannel.register(selector, SelectionKey.OP_ACCEPT);
@@ -197,6 +258,11 @@ class Server {
 		}
 	}
 
+	/**
+	 * Treat the state of the key gives in parameter
+	 * 
+	 * @param key
+	 */
 	private void treatKey(SelectionKey key) {
 		printSelectedKey(key); // for debug
 		try {
@@ -220,6 +286,11 @@ class Server {
 		}
 	}
 
+	/**
+	 * Close a client
+	 * 
+	 * @param key
+	 */
 	private void silentlyClose(SelectionKey key) {
 		Channel sc = (Channel) key.channel();
 		try {
@@ -248,6 +319,9 @@ class Server {
 		return String.join("|", list);
 	}
 
+	/**
+	 * Prints keys
+	 */
 	public void printKeys() {
 		Set<SelectionKey> selectionKeySet = selector.keys();
 		if (selectionKeySet.isEmpty()) {
@@ -266,6 +340,12 @@ class Server {
 		}
 	}
 
+	/**
+	 * Remote address of the socket channel gived in parameter
+	 * @param sc
+	 * @return the remote address
+	 * @return "???" if the IOException is catch
+	 */
 	private String remoteAddressToString(SocketChannel sc) {
 		try {
 			return sc.getRemoteAddress().toString();
@@ -274,6 +354,11 @@ class Server {
 		}
 	}
 
+	/**
+	 * Prints the key gived in parameter
+	 * 
+	 * @param key
+	 */
 	public void printSelectedKey(SelectionKey key) {
 		SelectableChannel channel = key.channel();
 		if (channel instanceof ServerSocketChannel) {
@@ -285,6 +370,11 @@ class Server {
 		}
 	}
 
+	/**
+	 * Converts into string the possible actions of the key gived in parameter
+	 * @param key
+	 * @return the possible actions
+	 */
 	private String possibleActionsToString(SelectionKey key) {
 		if (!key.isValid()) {
 			return "CANCELLED";

@@ -136,10 +136,21 @@ class Context {
 		}
 	}
 	
+	/**
+	 * Check if the current channel of a client is the main socket
+	 * 
+	 * return true is the main socket, and false in other case
+	 */
+
 	boolean isMainChannel() {
 		return mainSocketForClient;
 	}
 
+	/*
+	* Set the private context to a client for a private connection
+	*
+	* @param pcContext the private context
+	*/
 	void setPrivateConnection(Context pcContext) {
 		this.privateConnetion = Objects.requireNonNull(pcContext);
 	}
@@ -154,6 +165,9 @@ class Context {
 		updateInterestOps();
 	}
 
+	/**
+	 * Close a socket channel of a client
+	 */
 	void silentlyClose() {
 		try {
 			logger.log(Level.INFO, "closing client " + sc.getRemoteAddress());
@@ -226,7 +240,10 @@ class Context {
 	}
 
 	
-	
+	/**
+	 * Try to fill bbout from the message queue for a private connection
+	 *
+	 */	
 	private void processOutPrivate(ByteBuffer bb) {
 		if(bbout.remaining() >= bb.position()) {
 			System.out.println("writing in BBOUT");
