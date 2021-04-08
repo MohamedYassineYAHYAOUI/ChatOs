@@ -82,23 +82,33 @@ class ServerOperations {
 				new SimpleEntry<>(new PrivateConnexionSocket() , new PrivateConnexionSocket() ) );
 	}
 	
+	void removeClient(long id) {
+		var pc = currentPrivateConnexions.get(id);
+	
+		if(pc==null) {
+			return;
+		}
+		if(pc.getKey().context != null) {
+			System.out.println("silently Close 1");
+			pc.getKey().context.silentlyClose();	
+		}
+		if(pc.getValue().context != null) {
+			System.out.println("silently Close ");
+			pc.getValue().context.silentlyClose();
+		}
+		currentPrivateConnexions.remove(id);
+	}
+	
+	
 	void removeClient(SocketChannel sc) {
+
 		Objects.requireNonNull(sc);
 		var connexionClient = clients.get(sc);
 		if(connexionClient == null) {
 			return;
 		}
 		for(var connexionId : connexionClient.connexionsIds) {
-			var cp = currentPrivateConnexions.get(connexionId);
-			if(cp != null) {
-				if(cp.getKey().context != null) {
-					cp.getKey().context.silentlyClose();	
-				}
-				if(cp.getValue().context != null) {
-					cp.getValue().context.silentlyClose();
-				}
-			}
-			currentPrivateConnexions.remove(connexionId);
+			removeClient(connexionId);
 		}
 		clients.remove(sc);
 	}

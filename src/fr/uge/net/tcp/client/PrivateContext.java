@@ -19,15 +19,17 @@ class PrivateContext extends CommonContext implements GeneralContext{
 	private String initialMsg; // can be null
 	private final String targetLogin;
 	private boolean established = false;
-
-	private PrivateContext(SelectionKey key, String targetLogin, String initialMsg) {
+	private final long id;
+	
+	private PrivateContext(SelectionKey key, String targetLogin, String initialMsg, long id) {
 		super(key);
 		this.targetLogin = Objects.requireNonNull(targetLogin);
 		this.initialMsg = initialMsg;
+		this.id =id;
 	}
 
 	static PrivateContext CreateContext(SelectionKey key, String targetLogin, long id, String initialMsg) {
-		var pc = new PrivateContext(key, targetLogin, initialMsg);
+		var pc = new PrivateContext(key, targetLogin, initialMsg, id);
 
 		packetBuilder.setPacketCode(Codes.LOGIN_PRIVATE).setId(id);
 		var bb = packetBuilder.build().getResponseBuffer().flip();
@@ -52,9 +54,7 @@ class PrivateContext extends CommonContext implements GeneralContext{
 			bb.compact();
 			updateInterestOps();
 			System.out.println("taille bb aprés "+bb);
-			
 		}
-		
 	}
 
 	/**
@@ -77,6 +77,11 @@ class PrivateContext extends CommonContext implements GeneralContext{
 		}
 	}
 
+	long getId() {
+		return id;
+	}
+	
+	
 	private void processIn() throws IOException {
 		if (closed) {
 			return;
@@ -110,6 +115,7 @@ class PrivateContext extends CommonContext implements GeneralContext{
 			}
 		}
 	}
+	
 
 	public void doRead() throws IOException {
 		if (sc.read(bbin) == -1) {

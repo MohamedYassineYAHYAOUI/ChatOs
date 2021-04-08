@@ -34,6 +34,7 @@ abstract class CommonContext {
 		
 		try {
 			logger.info("Closing Channel");
+			closed = true;
 			sc.close();
 		} catch (IOException e) {
 			// ignore exception

@@ -49,7 +49,6 @@ public class ClientOS {
 		this.serverAddress = Objects.requireNonNull(serverAddress);
 		this.login = Objects.requireNonNull(login);
 		this.packetBuilder = new MessageResponse.Builder();
-		// this.privateConnections = new PrivateConnectionTraitement();
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
 		this.console = new Thread(this::consoleRun);
@@ -203,15 +202,25 @@ public class ClientOS {
 				var msg = commandQueue.poll();
 				String targetLogin = null;
 
-				if (msg.startsWith("/")) {// connexion privée /login_target file
-
-					targetLogin = msg.split(" ")[0].substring(1); // target Login
-					String message = msg.substring(targetLogin.length() + 2);
+				if (msg.startsWith("/")) {
+					var tmp = msg.split(" ");
+					targetLogin = tmp[0].substring(1); // target Login
 					if (targetLogin.equals(login)) {
 						continue;
 					}
-
 					var pc = privateConnexion.get(targetLogin);
+					if(tmp.length == 1 && pc != null) {
+						if(pc.getKey() != null) {
+							uniqueContext.queueMessage(packetBuilder.setPacketCode(Codes.DISCONNECT_PRIVATE).
+									setId(pc.getKey().getId()).build().getResponseBuffer());
+						}
+						removePrivateConnection(targetLogin);
+						continue;
+					}
+					String message = msg.substring(targetLogin.length() + 2);
+					
+					
+					
 					if (pc == null) { // no request for the target
 						packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
 								.setTargetLogin(targetLogin); // buffer builder

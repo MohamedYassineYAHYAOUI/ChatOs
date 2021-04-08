@@ -84,7 +84,6 @@ class Context extends CommonContext implements GeneralContext{
 					break;
 				case REFUSE_PRIVATE_CONNEXION:
 					processInt = new MessageProcess(codeProcess, (requester, target) -> {
-
 						if (!requester.equals(this.login)) {
 							return;
 						}
@@ -104,10 +103,9 @@ class Context extends CommonContext implements GeneralContext{
 				default:
 					throw new IllegalArgumentException("invalid Code ");
 				}
-				System.out.println("-------------- avant");
 
 				doneProcessing = processInt.executeProcess(bbin);
-				System.out.println("-------------- aprés");
+
 			}
 
 		} catch (IllegalArgumentException e) {

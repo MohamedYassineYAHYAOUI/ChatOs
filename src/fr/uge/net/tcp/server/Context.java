@@ -108,9 +108,12 @@ class Context {
 					
 				case LOGIN_PRIVATE:
 					System.out.println("LOGIN PRIVATE");
-					processInt = new LongReader(codeProcess, (id)-> server.establishConnection(id, key) );
+					processInt = new LongReader(codeProcess, id-> server.establishConnection(id, key) );
 					break;
+				case DISCONNECT_PRIVATE:
+					processInt = new LongReader(codeProcess, id->server.removeClient(id));
 					
+					break;
 				default:
 					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
 				}
@@ -180,8 +183,10 @@ class Context {
 			intrestOps |= SelectionKey.OP_WRITE;
 		}
 		if (intrestOps == 0) {
+			System.out.println("INTREST OPS == 0");
 			server.removeClient(key);
 			silentlyClose();
+			
 		} else {
 			key.interestOps(intrestOps);
 		}
@@ -228,10 +233,10 @@ class Context {
 	private void processOutPrivate(ByteBuffer bb) {
 		if(bbout.remaining() >= bb.position()) {
 			System.out.println("writing in BBOUT");
+			
 			bbout.put(bb.flip());
 			bb.compact();
 		}
-		
 	}
 	
 	
@@ -252,17 +257,13 @@ class Context {
 			System.out.println("PRIVATE CONTEXT IS NULL");
 		}
 		if(!mainSocketForClient && privateConnetion!=null) {
-			System.out.println("DO READ PRocessOUT private");
-			
+			//privateConnetion.queueResponse(res);
 			privateConnetion.processOutPrivate(bbin);
 			privateConnetion.updateInterestOps();
 		}else {
 			System.out.println("Process IN");
 			processIn();
 		}
-		
-		
-		
 		updateInterestOps();
 	}
 

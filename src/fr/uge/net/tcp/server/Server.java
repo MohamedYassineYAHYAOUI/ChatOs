@@ -68,6 +68,10 @@ class Server {
 		serverOperations.removeClient(sc);
 	}
 
+	void removeClient(long id) {
+		serverOperations.removeClient(id);
+	}
+	
 	void establishConnection(long connectId, SelectionKey key) {
 		Objects.requireNonNull(key);
 		

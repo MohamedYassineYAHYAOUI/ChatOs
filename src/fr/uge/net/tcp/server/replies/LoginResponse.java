@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 public class LoginResponse implements Response  {
 	
 	private final Codes responseCode;
-
+	
 	public LoginResponse(Codes responseCodes){
 		if(responseCodes != Codes.LOGIN_ACCEPTED
 			&& responseCodes != Codes.LOGIN_REFUSED) {
@@ -13,7 +13,7 @@ public class LoginResponse implements Response  {
 		}
 		responseCode = responseCodes;
 	}
-
+	
 	@Override
 	public Codes getResponseCode() {
 		return responseCode;
