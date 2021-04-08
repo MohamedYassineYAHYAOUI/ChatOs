@@ -10,7 +10,10 @@ import java.util.logging.Logger;
 
 import fr.uge.net.tcp.process.OpCodeProcess;
 
-
+/**
+ * abstract class for the private and the public context
+ *
+ */
 abstract class CommonContext {
 	
 	static private final int BUFFER_SIZE = 1_024;
@@ -117,7 +120,10 @@ abstract class CommonContext {
 		key.interestOps(interesOps);
 	}
 	
-
+	/**
+	 * set key to write if the socket channel is connected
+	 * @throws IOException
+	 */
 	public void doConnect() throws IOException {
 		if (!sc.finishConnect()) {
 			return;

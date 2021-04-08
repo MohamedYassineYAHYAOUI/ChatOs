@@ -11,10 +11,12 @@ import fr.uge.net.tcp.readers.LongReader;
 import fr.uge.net.tcp.process.MessageProcess;
 import fr.uge.net.tcp.process.Process;
 
-
+/**
+ * public context of the client, 
+ *
+ */
 class Context extends CommonContext implements GeneralContext{
 
-	//static private final int BUFFER_SIZE = 1_024;
 	static private final Logger logger = Logger.getLogger(Context.class.getName());
 
 	private Process process;
@@ -35,8 +37,9 @@ class Context extends CommonContext implements GeneralContext{
 	}
 
 	/**
-	 * Process the content of bbin
-	 *
+	 * Process the content of bbin,
+	 * bbin must start with a valid opCode, else this method throws IOE 
+	 * determine the operation from the opcode, and forward it to a process 
 	 * The convention is that bbin is in write-mode before the call to process and
 	 * after the call
 	 * 
@@ -50,7 +53,7 @@ class Context extends CommonContext implements GeneralContext{
 		}
 		try {
 			
-			if (!codeProcess.process(bbin)) {
+			if (!codeProcess.process(bbin)) { // process OpCode
 				return;
 			}
 			if (codeProcess.receivedCode() && doneProcessing) {
@@ -64,8 +67,8 @@ class Context extends CommonContext implements GeneralContext{
 					closed = true;
 					throw new IllegalStateException();
 				case PUBLIC_MESSAGE_RECEIVED:
-					process = new MessageProcess(codeProcess,
-							(login, msg) -> System.out.println(login + ": " + msg));
+					process = new MessageProcess(codeProcess, // process Code
+							(login, msg) -> System.out.println(login + ": " + msg)); // operation to execute
 					break;
 				case PRIVATE_MESSAGE_RECEIVED:
 					process = new MessageProcess(codeProcess,
@@ -81,7 +84,7 @@ class Context extends CommonContext implements GeneralContext{
 							return;
 						}
 						System.out.println("Private connexion refused from "+target);
-						clientOs.removePrivateConnection(target);
+						clientOs.removePrivateConnection(target); // remove history of the request
 					});
 					break;
 				case ID_PRIVATE:
@@ -93,7 +96,7 @@ class Context extends CommonContext implements GeneralContext{
 					throw new IllegalArgumentException("invalid Code ");
 				}
 
-				doneProcessing = process.executeProcess(bbin);
+				doneProcessing = process.executeProcess(bbin); // execute the specific process
 
 			}
 
@@ -115,7 +118,12 @@ class Context extends CommonContext implements GeneralContext{
 	
 
 	
-
+	/**
+	 * read bytes from sc and put them in bbin 
+	 * The convention is that bbin is in write-mode before the call to process and
+	 * after the call
+	 * start process on bbin
+	 */
     public void doRead() throws IOException {
         if (sc.read(bbin) == -1) {
             closed = true;
@@ -126,13 +134,19 @@ class Context extends CommonContext implements GeneralContext{
 	
 
 
-    
+    /**
+     * @return true if client can send new commands from the input, else false
+     */
 	boolean canSendCommand() {
 		synchronized (queue) {
 			return canSendCommand;
 		}
 	}
 	
+	/**
+	 *  set if the client can't send new commands from the input 
+	 * @param value true if user can send new commands, else false
+	 */
 	void setCanSendCommand(boolean value) {
 		synchronized (queue) {
 			if(!value) {
@@ -145,16 +159,17 @@ class Context extends CommonContext implements GeneralContext{
 			}
 		}
 	}
-
+	/**
+	 * @return return the current thread order to read client response
+	 */
 	int currentThreadOrder() {
 		synchronized (queue) {
 			return threadsCounter;
 		}
 	}
-	
-
-
-
+	/**
+	 * @return true if the context is connected to the server, else false
+	 */
 	boolean isConnected() {
 		return isConnected;
 	}

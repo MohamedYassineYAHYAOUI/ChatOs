@@ -9,15 +9,20 @@ import java.util.Objects;
 import fr.uge.net.tcp.responses.MessageResponse;
 import fr.uge.net.tcp.responses.Response.Codes;
 
+/**
+ * the private context for the private connection of the server
+ * 
+ *	initialMsg can be NULL
+ */
 class PrivateContext extends CommonContext implements GeneralContext{
 
 	static private final Charset UTF8 = Charset.forName("UTF8");
 	static private final MessageResponse.Builder packetBuilder = new MessageResponse.Builder();
 	
 	private String initialMsg; // can be null
-	private final String targetLogin;
-	private boolean established = false;
-	private final long id;
+	private final String targetLogin; // other client in private connection
+	private boolean established = false; // if the client is established connection yet 
+	private final long id; // private connection unique id
 	
 	private PrivateContext(SelectionKey key, String targetLogin, String initialMsg, long id) {
 		super(key);
@@ -48,12 +53,17 @@ class PrivateContext extends CommonContext implements GeneralContext{
 			super.processOut();
 		}
 	}
-
+	/**
+	 * @return private connection id
+	 */
 	long getId() {
 		return id;
 	}
 	
-	
+	/**
+	 *  
+	 * @throws IOException
+	 */
 	private void processIn() throws IOException {
 		if (closed) {
 			return;
