@@ -107,6 +107,7 @@ class ServerOperations {
 	 * 
 	 * @param sc
 	 */
+	
 	void removeClient(SocketChannel sc) {
 
 		Objects.requireNonNull(sc);
@@ -119,7 +120,6 @@ class ServerOperations {
 		}
 		clients.remove(sc);
 	}
-	
 	/**
 	 * Checks if the client connected is same than the login gives in parameter
 	 * using the socket channel
@@ -136,7 +136,6 @@ class ServerOperations {
 		return clientConnexion != null && clientConnexion.login.equals(login);
 	}
 	
-
 	/**
 	 * Checks if the connection is establish
 	 * 
@@ -158,7 +157,6 @@ class ServerOperations {
 		}
 		return pc.getValue().connected && pc.getKey().connected;
 	}
-	
 	/**
 	 * Gets the context of two clients using the connect id
 	 * 

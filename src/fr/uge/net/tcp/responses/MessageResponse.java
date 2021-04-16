@@ -90,7 +90,7 @@ public class MessageResponse implements Response {
 		}
 
 		/**
-		 * Builsq the message response packet 
+		 * Build the message response packet 
 		 * 
 		 * @return the message response packet
 		 */

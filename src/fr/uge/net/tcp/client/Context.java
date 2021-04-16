@@ -95,7 +95,6 @@ class Context extends CommonContext implements GeneralContext{
 				default:
 					throw new IllegalArgumentException("invalid Code ");
 				}
-
 				doneProcessing = process.executeProcess(bbin); // execute the specific process
 
 			}
