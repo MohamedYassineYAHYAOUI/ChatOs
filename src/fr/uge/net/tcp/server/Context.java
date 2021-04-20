@@ -146,7 +146,7 @@ class Context {
 		return mainSocketForClient;
 	}
 
-	/*
+	/**
 	* Set the private context to a client for a private connection
 	*
 	* @param pcContext the private context

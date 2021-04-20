@@ -190,7 +190,6 @@ class Server {
 		}
 
 	}
-
 	/**
 	 * Send a private message in a private connexion from the sender client to the target client
 	 * 
@@ -209,7 +208,7 @@ class Server {
 					var scTarget = (SocketChannel) clientKey.channel();
 					if (serverOperations.validUser(targetLogin, scTarget) && context.isMainChannel()) {
 
-						Packetbuilder.setPacketCode(Codes.PRIVATE_MESSAGE_RECEIVED).setLogin(senderLogin)
+						Packetbuilder.setPacketCode(Codes.PRIVATE_MESSAGE_RECEIVED).setLogin(senderLogin).setTargetLogin(targetLogin)
 								.setMessage(message);
 						context.queueResponse(Packetbuilder.build());
 						return;
