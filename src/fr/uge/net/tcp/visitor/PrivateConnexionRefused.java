@@ -8,7 +8,6 @@ public class PrivateConnexionRefused extends Frame{
 	private final String receiver; 
 	private final String sender;
 	
-	
 	public PrivateConnexionRefused( String sender, String receiver){
 		this.receiver = Objects.requireNonNull(receiver);
 		this.sender = Objects.requireNonNull(sender);

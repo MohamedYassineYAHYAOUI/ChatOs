@@ -1,18 +1,17 @@
 package fr.uge.net.tcp.server;
 
-
 import java.nio.channels.SocketChannel;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Objects;
-
 import java.util.AbstractMap.SimpleEntry;
 import java.util.logging.Logger;
 
 import fr.uge.net.tcp.responses.Response.Codes;
 
-class ServerOperations {
 
+class ServerOperations {
+	
 	private class ClientConnexions{
 		private final String login;
 		private final HashSet<Long> connexionsIds;
@@ -37,7 +36,7 @@ class ServerOperations {
 		}
 		
 	}
-
+	
 	
 	static private final Logger logger = Logger.getLogger(ServerOperations.class.getName());
 	private final HashMap<SocketChannel, ClientConnexions >clients;
@@ -48,8 +47,8 @@ class ServerOperations {
 		this.clients = new HashMap<SocketChannel, ClientConnexions>();
 		this.currentPrivateConnexions = new HashMap<Long, SimpleEntry<PrivateConnexionSocket, PrivateConnexionSocket>>();
 	}
-
-	Codes regesterLogin(String login, SocketChannel sc) {
+	
+	Codes registerLogin(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 		Objects.requireNonNull(sc);
 
@@ -62,64 +61,6 @@ class ServerOperations {
 		return Codes.LOGIN_ACCEPTED;
 	}
 
-	/**
-	 * Registers the private connection between the requester and the target with their connect id
-	 * 
-	 * @param connectId the connect id of the private connection
-	 * @param requesterSC the socket channel of the requester client
-	 * @param targetSC the socket channel of the target client
-	 */
-	void registerPrivateConnection(long connectId, SocketChannel requesterSC, SocketChannel targetSC) {
-		var requesterConnection = clients.get(requesterSC);
-		var targetConnection = clients.get(targetSC);
-		if(requesterConnection == null || targetConnection == null) {
-			throw new IllegalStateException("SC in null");
-		}
-		requesterConnection.connexionsIds.add(connectId);
-		targetConnection.connexionsIds.add(connectId);
-		currentPrivateConnexions.put(connectId, 
-				new SimpleEntry<>(new PrivateConnexionSocket() , new PrivateConnexionSocket() ) );
-	}
-	
-	/**
-	 * Removes a client with his id gived in parameter
-	 * 
-	 * @param id
-	 */
-	void removeClient(long id) {
-		var pc = currentPrivateConnexions.get(id);
-	
-		if(pc==null) {
-			return;
-		}
-		if(pc.getKey().context != null) {
-			pc.getKey().context.silentlyClose();	
-		}
-		if(pc.getValue().context != null) {
-			pc.getValue().context.silentlyClose();
-		}
-		currentPrivateConnexions.remove(id);
-
-	}
-	
-	/**
-	 * Removes a client with his socket channel gived in parameter
-	 * 
-	 * @param sc
-	 */
-	
-	void removeClient(SocketChannel sc) {
-
-		Objects.requireNonNull(sc);
-		var connexionClient = clients.get(sc);
-		if(connexionClient == null) {
-			return;
-		}
-		for(var connexionId : connexionClient.connexionsIds) {
-			removeClient(connexionId);
-		}
-		clients.remove(sc);
-	}
 	/**
 	 * Checks if the client connected is same than the login gives in parameter
 	 * using the socket channel
@@ -135,6 +76,7 @@ class ServerOperations {
 
 		return clientConnexion != null && clientConnexion.login.equals(login);
 	}
+	
 	
 	/**
 	 * Checks if the connection is establish
@@ -157,6 +99,7 @@ class ServerOperations {
 		}
 		return pc.getValue().connected && pc.getKey().connected;
 	}
+	
 	/**
 	 * Gets the context of two clients using the connect id
 	 * 
@@ -171,6 +114,63 @@ class ServerOperations {
 		return new SimpleEntry<>(pc.getKey().context,pc.getValue().context);
 	}
 	
-
+	/**
+	 * Removes a client with his id gived in parameter
+	 * 
+	 * @param id
+	 */
+	void removeClient(long id) {
+		var pc = currentPrivateConnexions.get(id);
 	
+		if(pc==null) {
+			return;
+		}
+		if(pc.getKey().context != null) {
+			pc.getKey().context.silentlyClose();	
+		}
+		if(pc.getValue().context != null) {
+			pc.getValue().context.silentlyClose();
+		}
+		currentPrivateConnexions.remove(id);
+	}
+	
+	
+	/**
+	 * Registers the private connection between the requester and the target with their connect id
+	 * 
+	 * @param connectId the connect id of the private connection
+	 * @param requesterSC the socket channel of the requester client
+	 * @param targetSC the socket channel of the target client
+	 */
+	void registerPrivateConnection(long connectId, SocketChannel requesterSC, SocketChannel targetSC) {
+		var requesterConnection = clients.get(requesterSC);
+		var targetConnection = clients.get(targetSC);
+		if(requesterConnection == null || targetConnection == null) {
+			throw new IllegalStateException("SC in null");
+		}
+		requesterConnection.connexionsIds.add(connectId);
+		targetConnection.connexionsIds.add(connectId);
+		currentPrivateConnexions.put(connectId, 
+				new SimpleEntry<>(new PrivateConnexionSocket() , new PrivateConnexionSocket() ) );
+	}
+	
+	/**
+	 * Removes a client with his socket channel gived in parameter
+	 * 
+	 * @param sc
+	 */
+	
+	void removeClient(SocketChannel sc) {
+
+		Objects.requireNonNull(sc);
+		var connexionClient = clients.get(sc);
+		if(connexionClient == null) {
+			return;
+		}
+		for(var connexionId : connexionClient.connexionsIds) {
+			removeClient(connexionId);
+		}
+		clients.remove(sc);
+	}
+
 }

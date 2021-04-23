@@ -6,7 +6,7 @@ public class PrivateConnexionAccepted extends Frame{
 
 	private final String receiver; 
 	private final String sender;
-	private final Long id;
+	private Long id;
 	
 	public PrivateConnexionAccepted(String sender, String receiver, Long id) {
 		this.receiver = Objects.requireNonNull(receiver);
@@ -14,11 +14,20 @@ public class PrivateConnexionAccepted extends Frame{
 		this.id = id;
 	}
 	
+	public PrivateConnexionAccepted(String sender, String receiver) {
+		this.receiver = Objects.requireNonNull(receiver);
+		this.sender = Objects.requireNonNull(sender);
+		id = null;
+	}
+	
 	public void accept(FrameVisitor frameVisitor) {
 		frameVisitor.visit(this);
 	}
 
 	public Long getId() {
+		if( id == null) {
+			throw new IllegalStateException("request with no id");
+		}
 		return id;
 	}
 	

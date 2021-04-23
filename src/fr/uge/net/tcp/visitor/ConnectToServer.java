@@ -13,8 +13,6 @@ public class ConnectToServer extends Frame {
 		frameVisitor.visit(this);
 	}
 
-	
-	
 	public boolean isConnected() {
 		return flag;
 	}

@@ -8,14 +8,10 @@ import java.util.LinkedList;
 import java.util.Queue;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.process.OpCodeProcess;
 
-/**
- * abstract class for the private and the public context
- *
- */
+
+
 abstract class CommonContext {
-	
 	static private final int BUFFER_SIZE = 1_024;
 	static private final Logger logger = Logger.getLogger(CommonContext.class.getName());
 
@@ -24,7 +20,6 @@ abstract class CommonContext {
 	final ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
 	final ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
 	final Queue<ByteBuffer> queue = new LinkedList<>(); // buffers read-mode
-	final OpCodeProcess codeProcess = new OpCodeProcess();
 
 	boolean closed = false;	
 	
@@ -32,6 +27,7 @@ abstract class CommonContext {
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
 	}
+	
 	
 	void silentlyClose() {
 		
@@ -59,7 +55,7 @@ abstract class CommonContext {
 			}
 		}
 	}
-
+	
 	/**
 	 * Performs the write action on sc
 	 *
@@ -84,6 +80,7 @@ abstract class CommonContext {
 	 * @param bb
 	 */
 	void queueMessage(ByteBuffer bb) {
+		
 		synchronized (queue) {
 			bb.flip();
 			queue.add(bb); //offer à la place de add

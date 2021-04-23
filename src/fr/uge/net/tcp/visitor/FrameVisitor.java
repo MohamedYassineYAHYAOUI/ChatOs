@@ -16,6 +16,10 @@ public interface FrameVisitor {
 
 	public void visit(PrivateConnexionAccepted privateConnexionAccepted);
 
+	public void visit(ServerConnection serverConnection);
 
+	public void visit(EstablishConnexion establishConnexion);
 	
+	public void visit(DisconnectFromServer disconnectFromServer);
+
 }

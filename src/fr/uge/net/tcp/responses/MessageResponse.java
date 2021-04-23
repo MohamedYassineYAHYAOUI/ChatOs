@@ -27,7 +27,6 @@ public class MessageResponse implements Response {
 			if (targetLogin.length() > MAX_LOGIN_SIZE) {
 				throw new IllegalArgumentException("Target login is too long");
 			}
-		
 			this.targetLogin = targetLogin;
 			return this;
 		}
@@ -105,7 +104,7 @@ public class MessageResponse implements Response {
 		/**
 		 * Resets all fields of the builder
 		 */
-		private void resetBuilder() {
+		public void resetBuilder() {
 			targetLogin = null;
 			message = null;
 			login = null;

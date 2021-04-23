@@ -79,7 +79,7 @@ public class PrivateConnexionAcceptedReader  implements Reader<PrivateConnexionA
 		readLoginreciever = false;
 		readId = false;
 		stringReader.reset();
-		 longReader.reset();
+		longReader.reset();
 	}
 
 }
