@@ -4,19 +4,14 @@ import java.nio.ByteBuffer;
 
 import fr.uge.net.tcp.visitor.PublicMessage;
 
-public class PublicMessageReader implements Reader<PublicMessage>{
-	
-	enum State {
-		DONE, WAITING, ERROR
-	};
+/**
+ * 
+ * receiver = message
+ * readReceiver = redMsg
+ *
+ */
+public class PublicMessageReader extends AbstractCommonReader<PublicMessage> implements Reader<PublicMessage>{
 
-	private State state = State.WAITING;
-	private PublicMessage publicMessage; 
-	private String login;
-	private String message;
-	private boolean readLogIn = false;
-	private boolean readMsg = false;
-	private final StringReader stringReader = new StringReader(); 
 	
 	
 	@Override
@@ -24,7 +19,7 @@ public class PublicMessageReader implements Reader<PublicMessage>{
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-        while(!readLogIn || !readMsg) {
+        while(!readLogIn || !readReceiver) {
         	
     		var srState = stringReader.process(bb);
     		if (srState != ProcessStatus.DONE) {
@@ -35,32 +30,23 @@ public class PublicMessageReader implements Reader<PublicMessage>{
         		login = stringReader.get();
 
         	}else {
-        		readMsg = true;
-        		message = stringReader.get();
+        		readReceiver = true;
+        		receiver = stringReader.get();
         		stringReader.reset();	
         	}
     		stringReader.reset();
         	
         }
         state=State.DONE;
-        publicMessage = new PublicMessage(login, message);
+        frame = new PublicMessage(login, receiver);
         return ProcessStatus.DONE;
 	}
 
-	@Override
-	public PublicMessage get() {
-		return publicMessage;
-	}
+
 
 	@Override
 	public void reset() {
-		publicMessage = null;
-		state = State.WAITING;
-		login = null;
-		message = null;
-		readLogIn = false;
-		readMsg = false;
-		stringReader.reset();
+		super.reset();
 	} 
 
 	

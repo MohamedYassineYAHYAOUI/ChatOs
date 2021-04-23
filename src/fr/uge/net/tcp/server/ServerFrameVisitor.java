@@ -25,7 +25,7 @@ class ServerFrameVisitor implements FrameVisitor{
 	private final Context context;
 	private final MessageResponse.Builder packetBuilder;
 	private final ServerOperations serverOperations;
-	private final Random random = new Random();
+	private final Random randomId = new Random();
 	
 	public ServerFrameVisitor(Server server, Context context, ServerOperations serverOperations) {
 		this.server = Objects.requireNonNull(server);
@@ -105,7 +105,7 @@ class ServerFrameVisitor implements FrameVisitor{
 	public void visit(PrivateConnexionAccepted privateConnexionAccepted) {
 		
 		if (serverOperations.validUser(privateConnexionAccepted.getReceiver(), context.contextSocketChannel())) {
-			var idCode = random.nextLong();
+			var idCode = randomId.nextLong();
 			
 			
 			var sender_sc = server.getClientSocketChannel(privateConnexionAccepted.getSender());

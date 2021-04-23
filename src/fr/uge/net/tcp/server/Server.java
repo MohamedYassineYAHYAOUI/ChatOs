@@ -23,9 +23,6 @@ class Server {
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final ServerOperations serverOperations;
-	//private final MessageResponse.Builder Packetbuilder = new MessageResponse.Builder();
-
-	//private final Random random = new Random();
 
 	public Server(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
@@ -184,7 +181,7 @@ class Server {
 	/**
 	 * Prints keys
 	 */
-	public void printKeys() {
+	public void printKeys(){
 		Set<SelectionKey> selectionKeySet = selector.keys();
 		if (selectionKeySet.isEmpty()) {
 			System.out.println("The selector contains no key : this should not happen!");

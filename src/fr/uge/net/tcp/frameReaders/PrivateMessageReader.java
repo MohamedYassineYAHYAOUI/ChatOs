@@ -4,41 +4,30 @@ import java.nio.ByteBuffer;
 
 import fr.uge.net.tcp.visitor.PrivateMessage;
 
-public class PrivateMessageReader implements Reader<PrivateMessage>{
-
-	enum State {
-		DONE, WAITING, ERROR
-	};
-
-	private State state = State.WAITING;
-	private PrivateMessage privateMessage; 
-	private String sender;
-	private String  receiver;
-	private String message;
-	private boolean readLoginSender = false;
-	private boolean readLoginreciever = false;
-	private boolean readMsg = false;
-	private final StringReader stringReader = new StringReader();
+public class PrivateMessageReader extends AbstractCommonReader<PrivateMessage> implements Reader<PrivateMessage>{
 	
+
+	private String message;
+	private boolean readMsg = false;	
 
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
 			throw new IllegalStateException();
 		}
-        while(!readLoginSender || !readLoginreciever || !readMsg) {
+        while(!readLogIn || !readReceiver || !readMsg) {
         	
         	ProcessStatus srState =  stringReader.process(bb);
 
     		if (srState != ProcessStatus.DONE) {
     			return srState;
     		}
-        	if(!readLoginSender) {
-        		readLoginSender = true;
-        		sender = stringReader.get();
+        	if(!readLogIn) {
+        		readLogIn = true;
+        		login = stringReader.get();
 
-        	} else if (!readLoginreciever) {
-        		readLoginreciever = true;
+        	} else if (!readReceiver) {
+        		readReceiver = true;
         		receiver = stringReader.get();  
         		stringReader.reset();	
         	}
@@ -48,27 +37,17 @@ public class PrivateMessageReader implements Reader<PrivateMessage>{
         	}
     		stringReader.reset();
         }
-        privateMessage = new PrivateMessage(sender, receiver, message);
+        frame = new PrivateMessage(login, receiver, message);
         state=State.DONE;
         return ProcessStatus.DONE;
 	}
 
 	@Override
-	public PrivateMessage get() {
-		return privateMessage;
-	}
-
-	@Override
 	public void reset() {
-		state = State.WAITING;
-		privateMessage = null; 
-		sender = null;
-		receiver = null;
+		super.reset();
 		message = null;
-		readLoginSender = false;
-		readLoginreciever = false;
 		readMsg = false;
-		stringReader.reset();
+
 	}
 	
 
