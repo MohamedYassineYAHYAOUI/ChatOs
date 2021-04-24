@@ -7,7 +7,7 @@ public interface Response {
 	final Charset UTF8 = Charset.forName("utf8");
 
 	/**
-	 * Enum which represent the possibles codes for a packet
+	 * Enum which represent the possible codes for a packet
 	 */
 	static enum Codes {		
 		 REQUEST_SERVER_CONNECTION(0), 

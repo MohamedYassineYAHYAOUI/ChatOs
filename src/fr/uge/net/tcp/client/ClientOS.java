@@ -102,7 +102,7 @@ public class ClientOS {
 	 * build the packet asking to connect to server, and queue the packet in 
 	 * the main context, then wake up the selector
 	 */
-	private void processConnection() {
+	private void processConnection(){
 		synchronized (serverAddress) {
 			packetBuilder.setPacketCode(Codes.REQUEST_SERVER_CONNECTION).setLogin(login);
 			uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
@@ -139,23 +139,44 @@ public class ClientOS {
 		}
 	}
 	
+	/**
+	 * Gets the private connection with another user gived in parameter
+	 * 
+	 * @param otherUser the other user
+	 * @return the private connection
+	 */
 	SimpleEntry<PrivateContext, String> getPrivateConnexion(String otherUser){
 		synchronized (serverAddress) {
 			return privateConnexion.get(otherUser);
 		}
 	}
 	
-	
+	/**
+	 * Removes the private connection with the target client
+	 * gived in parameter
+	 * 
+	 * @param targetLogin the target login of the client 
+	 */
 	void removePrivateConnection(String targetLogin) {
 		synchronized (serverAddress) {
 			privateConnexion.remove(targetLogin);
 		}
 	}
 
+	/**
+	 * Gets the client login
+	 * 
+	 * @return the login
+	 */
 	String getLogin() {
 		return login;
 	}
 	
+	/**
+	 * Queue message for the packet
+	 * 
+	 * @param bb the packet
+	 */
 	void queueMessage(ByteBuffer bb) {
 		Objects.requireNonNull(bb);
 		synchronized (serverAddress) {
@@ -163,6 +184,12 @@ public class ClientOS {
 		}
 	}
 	
+	/**
+	 * Adds a private connection
+	 * 
+	 * @param otherClient the client with which a private connection must be created
+	 * @param se the login client with the private context
+	 */
 	void addPrivateConnexion(String otherClient, SimpleEntry<PrivateContext, String> se ) {
 		Objects.requireNonNull(otherClient);
 		Objects.requireNonNull(se);
@@ -222,6 +249,12 @@ public class ClientOS {
 		}
 	}
 
+
+	/**
+	 * Close the client connection
+	 * 
+	 * @param key
+	 */
 	private void silentlyClose(SelectionKey key) {
 		Channel sc = (Channel) key.channel();
 		try {

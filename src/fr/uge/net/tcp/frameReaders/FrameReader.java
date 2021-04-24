@@ -19,6 +19,12 @@ public class FrameReader implements Reader<Frame> {
 
 	private Frame frame ;
 
+	/**
+	 * process byteBuffer bb 
+	 * @param bb Bytebuffer to process
+	 * @return true if the byteBuffer is Done, false if the process in refill
+	 * @throws IllegalStateException if the process return ERROR
+	 */
 	public boolean processOpCode(ByteBuffer bb) {
 		switch(intReader.process(bb)) {
 		case DONE:
@@ -32,7 +38,11 @@ public class FrameReader implements Reader<Frame> {
 		}
 	}
 
-	
+	/**
+	 * process the code passed in the start of the packet
+	 * @return Codes coresponding to the packet
+	 * @throws IllegalArgumentException if Codes.values doesn't contain the value
+	 */
 	public Codes processCode() {
 		var value = intReader.get();
 		for (var code : Codes.values()) {
@@ -44,7 +54,12 @@ public class FrameReader implements Reader<Frame> {
 	}
 	
 
-	
+	/**
+	 * process bytebuffer using the Reader reader
+	 * @param bb bytebuffer to process 
+	 * @param reader Reader to process the byteBuffer with 
+	 * @return ProcessStatus  to reflect the current state of the process
+	 */
 	 private ProcessStatus process(ByteBuffer bb, Reader<? extends Frame> reader ) {
 			var res = reader.process(bb);
 			if(res == ProcessStatus.DONE) {
@@ -53,6 +68,14 @@ public class FrameReader implements Reader<Frame> {
 			}
 			return res;
 	 }
+	 
+	 /**
+	  * a byte buffer in write-mode, parse the opCode at the begging of buffer 
+	  * and determine the action to apply on the rest of the buffer
+	  * Convention is bb in write-mode before and after this method
+	  * @param bb ByteBuffer to process
+	  * @return ProcessStatus status of the action applied on the buffer
+	  */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		try {
@@ -97,7 +120,11 @@ public class FrameReader implements Reader<Frame> {
 		}
 	}	
 
-	
+	/**
+	 * get the Frame 
+	 * @return Frame to apply after parsing the buffer
+	 * @throws IllegalStateException if the opcode doesn't match an operation
+	 */
 	@Override
 	public Frame get() {
 		if(frame == null) {

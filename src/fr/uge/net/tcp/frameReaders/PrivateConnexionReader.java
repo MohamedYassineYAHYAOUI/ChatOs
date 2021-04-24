@@ -6,7 +6,12 @@ import java.util.function.BiFunction;
 
 import fr.uge.net.tcp.visitor.Frame;
 
-
+/**
+ * Reader to process packets of type Login (String) receiver (String)
+ * @param <T> generic type that extends Frame
+ * this reader can work on the packets like
+ *  REQUEST_PRIVATE_CONNEXION, REFUSE_PRIVATE_CONNEXION, ACCEPT_PRIVATE_CONNEXION
+ */
 class PrivateConnexionReader<T extends Frame> extends AbstractCommonReader<T> implements Reader<T> {
 
 
@@ -16,7 +21,9 @@ class PrivateConnexionReader<T extends Frame> extends AbstractCommonReader<T> im
 		this.function = Objects.requireNonNull(function);
 	}
 
-
+	/**
+	 * process the byteBuffer and extract information
+	 */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
@@ -45,6 +52,9 @@ class PrivateConnexionReader<T extends Frame> extends AbstractCommonReader<T> im
         return ProcessStatus.DONE;
 	}
 
+	/**
+	 * reset reader
+	 */
 	@Override
 	public void reset() {
 		super.reset();

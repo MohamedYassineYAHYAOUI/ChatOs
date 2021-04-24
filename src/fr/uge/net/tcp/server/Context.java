@@ -32,8 +32,6 @@ class Context {
 	private final ServerOperations serverOperations;
 	private final FrameReader frameReader;
 	private final ServerFrameVisitor frameVisitor;
-	
-
 	private boolean mainSocketForClient = false;
 
 	private Context  privateConnetion; // context
@@ -49,7 +47,10 @@ class Context {
 	
 	
 	
-	
+	/**
+	 * process the bbin of the context 
+	 * bbin is in write mode at the beginning and the end of the method
+	 */
 	private void processIn() {
 		for(;;) {
 			var status = frameReader.process(bbin);
@@ -80,24 +81,33 @@ class Context {
 		return mainSocketForClient;
 	}
 	
+	/**
+	 * Set this context as the main channel for the client
+	 */
 	void setAsMainChannel() {
 		this.mainSocketForClient = true;
 	}
 
 	
-	
+	/**
+	 *  
+	 * @param frame product that accepts the visitor
+	 */
 	private void treatFrame(Frame frame) {
 		frame.accept(frameVisitor);
 	}
 	
-	
+	/**
+	 * getter for this context socket Channel
+	 * @return SocketChannel
+	 */
 	SocketChannel contextSocketChannel() {
 		return sc;
 	}
 	
 	/**
 	 * Try to fill bbout from the message queue
-	 *
+	 * bbout stays in write in this method
 	 */
 	private void processOut() {
 		while (!queue.isEmpty() && bbout.remaining() >= queue.peek().size()) {
@@ -114,13 +124,12 @@ class Context {
 	}
 
 	/**
-	 * Try to fill bbout from the message queue for a private connection
-	 *
+	 * Try to fill bbout from the ByteBuffer bb
+	 * bbout stays in write in this method
+	 *@param bb ByteBuffer to fill bbout from
 	 */	
 	private void processOutPrivate(ByteBuffer bb) {
 		if(bbout.remaining() >= bb.position()) {
-			System.out.println("writing in BBOUT");
-			
 			bbout.put(bb.flip());
 			bb.compact();
 		}

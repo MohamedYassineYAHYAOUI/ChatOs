@@ -1,6 +1,10 @@
 package fr.uge.net.tcp.frameReaders;
 
-
+/**
+ * common class for the readers code 
+ *
+ * @param <T> generic type for the Frame
+ */
 abstract class AbstractCommonReader<T> {
 	
 	enum State {

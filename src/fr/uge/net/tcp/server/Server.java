@@ -33,7 +33,7 @@ class Server {
 	
 	
 	/**
-	 * Accept a connection
+	 * Accept a connection from the server
 	 * 
 	 * @param key
 	 * @throws IOException
@@ -70,8 +70,9 @@ class Server {
 	}
 
 	/**
-	 * Treat the state of the key gives in parameter
-	 * 
+	 * Treat the state of the key,
+	 * if the selectionkey is valide and can accepte a new connection, then connect
+	 * check if the key can read or/ and write, if do call doread and/or dowrite
 	 * @param key
 	 */
 	private void treatKey(SelectionKey key) {
@@ -98,8 +99,7 @@ class Server {
 	}
 
 	/**
-	 * Close a client
-	 * 
+	 * close and release the key
 	 * @param key
 	 */
 	private void silentlyClose(SelectionKey key) {
@@ -111,7 +111,11 @@ class Server {
 		}
 	}
 
-	
+	/**
+	 * get the client socket channel with the name login
+	 * @param login name of the client 
+	 * @return SocketChannel of the client if the client exists, else null
+	 */
 	SocketChannel getClientSocketChannel(String login) {
 		for (var clientKey : selector.keys()) {
 			var context = (Context) clientKey.attachment();
@@ -125,7 +129,11 @@ class Server {
 		return null;
 	}
 	
-	
+	/**
+	 * Send a private  message response to the specific client loginReceiver if they exist
+	 * @param loginReceiver the login of the client which receive the private message
+	 * @param response the message to send to the client
+	 */
 	void sendPrivateMessage(String loginReceiver, Response response) {
 		
 		for (var clientKey : selector.keys()) {
@@ -143,9 +151,11 @@ class Server {
 	}
 
 	
-	/**
-	 * Send a message from a client to all the other clients except himself
-	 */
+/**
+ * Send a message from a client  to all the other clients except himself
+ * @param contextSender the context of the client sending the message
+ * @param request the packet
+ */
 	void broadcast( Context contextSender, Response request ) {
 		
 		for (var clientKey : selector.keys()) {

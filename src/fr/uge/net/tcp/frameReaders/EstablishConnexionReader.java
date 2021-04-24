@@ -8,7 +8,15 @@ import java.util.function.Function;
 import fr.uge.net.tcp.visitor.Frame;
 
 
-
+/**
+ * Reader for packets of the type T, such as 
+ * LOGIN_PRIVATE: login (String)
+ * REQUEST_SERVER_CONNECTION: ID (Long)
+ * DISCONNECT_PRIVATE: login (String)
+ *
+ * @param <Q> type of the value (Long , String ...)
+ * @param <T> generic type for the frame
+ */
 
 class EstablishConnexionReader<Q ,T extends Frame> implements Reader<T>{
 
@@ -29,6 +37,9 @@ class EstablishConnexionReader<Q ,T extends Frame> implements Reader<T>{
 		this.function = Objects.requireNonNull(function);
 	}
 
+ 	/**
+ 	 * process the bytebuffer
+ 	 */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
@@ -50,6 +61,9 @@ class EstablishConnexionReader<Q ,T extends Frame> implements Reader<T>{
         return ProcessStatus.DONE;
 		
 	}
+	/**
+	 * get the frame value if the state is Done
+	 */
 	@Override
 	public T get() {
 		if(state != State.DONE) {
@@ -57,6 +71,10 @@ class EstablishConnexionReader<Q ,T extends Frame> implements Reader<T>{
 		}
 		return establishConnection;
 	}
+	
+	/**
+	 * reset reader
+	 */
 	@Override
 	public void reset() {
 		state = State.WAITING;

@@ -17,6 +17,9 @@ class StringReader implements Reader<String> {
 	private int size;
 	private String value;
 
+	/**
+	 * @param bb ByteBuffer to process
+	 */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 
@@ -59,6 +62,10 @@ class StringReader implements Reader<String> {
 		}
 	}
 
+	/**
+	 * @return return the string in the byte buffer, if the state is Done
+	 * @throws IllegalStateException if state is not done
+	 */
 	@Override
 	public String get() {
 		if (state != State.DONE) {
@@ -68,6 +75,9 @@ class StringReader implements Reader<String> {
 		return value;
 	}
 
+	/**
+	 * reset stringReader
+	 */
 	@Override
 	public void reset() {
 		state = State.WAITING_FOR_SIZE;

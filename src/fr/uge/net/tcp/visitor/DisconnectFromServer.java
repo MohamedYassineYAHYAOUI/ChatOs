@@ -9,12 +9,21 @@ public class DisconnectFromServer implements Frame{
 		this.id = id;
 	}
 	
-	
+	/**
+	 * Accept method for visiting the DisconnectFromServer object
+	 * 
+	 * @param frameVisitor the FrameVisitor for visiting the DisconnectFromServer object
+	 * */
 	@Override
 	public void accept(FrameVisitor frameVisitor) {
 		frameVisitor.visit(this);
 	}
 	
+	/**
+	 * Gets connect_id from a private connection disconnected
+	 * 
+	 * @return the id
+	 * */
 	public Long getId() {
 		return id;
 	}

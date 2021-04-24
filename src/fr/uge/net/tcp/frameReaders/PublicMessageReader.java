@@ -5,14 +5,10 @@ import java.nio.ByteBuffer;
 import fr.uge.net.tcp.visitor.PublicMessage;
 
 /**
- * 
- * receiver = message
- * readReceiver = redMsg
- *
+ * Reader for the packet login (String) message (String)
  */
 class PublicMessageReader extends AbstractCommonReader<PublicMessage> implements Reader<PublicMessage>{
 
-	
 	
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {

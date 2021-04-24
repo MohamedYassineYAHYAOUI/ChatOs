@@ -55,7 +55,7 @@ class PrivateContext extends CommonContext implements Context{
 	}
 	
 	/**
-	 *  process bbin for the 
+	 *  process bbin 
 	 * @throws IOException
 	 */
 	private void processIn() throws IOException {
@@ -88,6 +88,9 @@ class PrivateContext extends CommonContext implements Context{
 		}
 	}
 	
+	/**
+	 *read the bbin buffer
+	 */
 	public void doRead() throws IOException {
 		if (sc.read(bbin) == -1) {
 			closed = true;

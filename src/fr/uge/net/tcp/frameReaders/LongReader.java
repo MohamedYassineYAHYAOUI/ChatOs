@@ -3,6 +3,9 @@ package fr.uge.net.tcp.frameReaders;
 import java.nio.ByteBuffer;
 
 
+/**
+ * Reader for Long values 
+ */
 class LongReader implements Reader<Long>{
 
 	
@@ -13,7 +16,9 @@ class LongReader implements Reader<Long>{
     private final ByteBuffer internalbb = ByteBuffer.allocate(Long.BYTES); // write-mode
     private Long value;
 
-	
+	/**
+	 * process the byteBuffer and extract the long value
+	 */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
         if (state== State.DONE || state== State.ERROR){
@@ -45,6 +50,9 @@ class LongReader implements Reader<Long>{
         return ProcessStatus.DONE;
 	}
 
+	/**
+	 * @return return long value
+	 */
 	@Override
 	public Long get() {
         if (state!= State.DONE) {
@@ -53,6 +61,9 @@ class LongReader implements Reader<Long>{
         return value;
 	}
 
+	/**
+	 * reset reader
+	 */
 	@Override
 	public void reset() {
         state= State.WAITING;

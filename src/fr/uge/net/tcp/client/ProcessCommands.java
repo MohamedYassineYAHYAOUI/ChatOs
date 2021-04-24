@@ -25,12 +25,23 @@ class ProcessCommands {
 
 	}
 	
+	/**
+	 * Checks if the queue is empty
+	 * 
+	 * @return true if the queue is empty, otherwise
+	 * return false
+	 */
 	boolean queueIsEmpty() {
 		synchronized (commandQueue) {
 			return commandQueue.isEmpty();
 		}
 	}
 	
+	/**
+	 * Adds message in the queue
+	 * 
+	 * @param message the message
+	 */
 	void addToQueue(String message) {
 		Objects.requireNonNull(message);
 		synchronized (commandQueue) {
@@ -38,8 +49,13 @@ class ProcessCommands {
 		}
 	}
 	
+	/**
+	 * Prepares the private message in the packet
+	 * 
+	 * @param msg the private message
+	 * @return the target login of the target which receive the private message
+	 */
 	private String privateMessage(String msg) {
-		//@Bob
 		var targetLogin = msg.split(" ")[0].substring(1);
 		synchronized (commandQueue) {
 			if(targetLogin.equals(login)) {
@@ -51,25 +67,41 @@ class ProcessCommands {
 		return targetLogin;
 
 	}
+	
+	/**
+	 * Prepares the public message in the packet
+	 * 
+	 * @param msg the public message
+	 */
 	private void publicMessage(String msg) {
 		synchronized (commandQueue) {
 			packetBuilder.setPacketCode(Codes.PUBLIC_MESSAGE_SENT).setLogin(login).setMessage(msg);
 		}
 	}
 	
+	/**
+	 * Gets the next message in the queue
+	 * 
+	 * @return the next message
+	 */
 	String nextMessage() {
 		synchronized (commandQueue) {
 			return commandQueue.poll();
 		}	
 	}
 	
+	/**
+	 * Prepares the message for the private connection packet
+	 * 
+	 * @param msg the message to send
+	 * @return the target login of the target which receive the message
+	 */
 	private String privateConnexion(String msg) {
 		var tmp = msg.split(" ");
 		var targetLogin = tmp[0].substring(1); // target Login
 		if (targetLogin.equals(login)) { // if request to the client himself, ignore
 			throw new IllegalArgumentException("Can't start private connexion with self ");
 		}
-		//var pc = privateConnexion.get(targetLogin);
 		var pc = client.getPrivateConnexion(targetLogin);
 		if (tmp.length == 1 && pc != null) { //disconnect from a private connection
 			if (pc.getKey() != null) { // the connection was established (not pending)
@@ -93,7 +125,9 @@ class ProcessCommands {
 		}
 		return targetLogin;
 	}
-	
+	/**
+	 * process user input 
+	 */
 	void processUserInput() {
 		while (!commandQueue.isEmpty()) {
 			try {

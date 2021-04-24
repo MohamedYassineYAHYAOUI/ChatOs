@@ -4,12 +4,21 @@ import java.nio.ByteBuffer;
 
 import fr.uge.net.tcp.visitor.PrivateMessage;
 
+
+/**
+ * Reader for the packet login (String) receiver (String) message (String)
+ */
 class PrivateMessageReader extends AbstractCommonReader<PrivateMessage> implements Reader<PrivateMessage>{
 	
 
 	private String message;
 	private boolean readMsg = false;	
 
+	/**
+	 * process the bytebuffer to extract the sender login, the receiver login and the message 
+	 * @param bb
+	 * @return ProcessStatus of the state of the process
+	 */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
@@ -42,6 +51,9 @@ class PrivateMessageReader extends AbstractCommonReader<PrivateMessage> implemen
         return ProcessStatus.DONE;
 	}
 
+	/**
+	 * reset reader
+	 */
 	@Override
 	public void reset() {
 		super.reset();

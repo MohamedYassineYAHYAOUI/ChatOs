@@ -26,7 +26,9 @@ class PublicContext extends CommonContext implements Context {
 		this.frameReader = new FrameReader();
 	}
 	
-	
+	/**
+	 *  The processIn method 
+	 */
 	private void processIn() {
 		for(;;) {
 			var status = frameReader.process(bbin);
@@ -45,6 +47,11 @@ class PublicContext extends CommonContext implements Context {
 		}
 	}
 	
+	/**
+	 * Treats a frame
+	 * 
+	 * @param frame the frame to treat
+	 */
 	private void treatFrame(Frame frame) {
 		frame.accept(frameVisitor);
 	}
@@ -62,7 +69,7 @@ class PublicContext extends CommonContext implements Context {
 	}
 	
     /**
-     * @return true if client can send new commands from the input, else false
+     * @return true if the client can send new commands from the input, else false
      */
 	boolean canSendCommand() {
 		synchronized (queue) {
@@ -86,12 +93,20 @@ class PublicContext extends CommonContext implements Context {
     }
 
 
-	
+	/**
+	 * Sets the boolean for the connection
+	 * 
+	 * @param value the boolean
+	 */
 	public void setConnected(boolean value) {
 		isConnected = value;
 		
 	}
-	
+	/**
+	 * Sets the boolean for the connection close 
+	 * 
+	 * @param value the boolean
+	 */
 	public void setClosed(boolean value) {
 		closed = value;
 	}

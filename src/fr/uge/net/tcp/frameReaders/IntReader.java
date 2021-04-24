@@ -3,7 +3,9 @@ package fr.uge.net.tcp.frameReaders;
 import java.nio.ByteBuffer;
 
 
-
+/**
+ * Reader for Integer values 
+ */
 class IntReader implements Reader<Integer> {
 
     private enum State {DONE,WAITING,ERROR};
@@ -12,6 +14,9 @@ class IntReader implements Reader<Integer> {
     private final ByteBuffer internalbb = ByteBuffer.allocate(Integer.BYTES); // write-mode
     private int value;
 
+    /**
+	 * process the byteBuffer and extract the Integer value
+     */
     @Override
     public ProcessStatus process(ByteBuffer bb) {
         if (state== State.DONE || state== State.ERROR){
@@ -43,6 +48,9 @@ class IntReader implements Reader<Integer> {
         return ProcessStatus.DONE;
     }
 
+    /**
+     * Reader for Integer values 
+     */
     @Override
     public Integer get() {
         if (state!= State.DONE) {
@@ -51,6 +59,9 @@ class IntReader implements Reader<Integer> {
         return value;
     }
 
+    /**
+     * reset Reader
+     */
     @Override
     public void reset() {
         state= State.WAITING;

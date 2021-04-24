@@ -4,7 +4,6 @@ import java.nio.ByteBuffer;
 
 import fr.uge.net.tcp.visitor.PrivateConnexionAccepted;
 
-
 class PrivateConnexionAcceptedReader extends AbstractCommonReader<PrivateConnexionAccepted> implements Reader<PrivateConnexionAccepted>{
 
 
@@ -12,6 +11,9 @@ class PrivateConnexionAcceptedReader extends AbstractCommonReader<PrivateConnexi
 	private boolean readId = false;
 	private final LongReader longReader = new LongReader();
 	
+	/**
+	 * process the byteBuffer and extract the information
+	 */
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		if (state == State.DONE || state == State.ERROR) {
@@ -50,6 +52,9 @@ class PrivateConnexionAcceptedReader extends AbstractCommonReader<PrivateConnexi
         return ProcessStatus.DONE;
 	}
 
+	/**
+	 * reset reader
+	 */
 	@Override
 	public void reset() {
 		super.reset();

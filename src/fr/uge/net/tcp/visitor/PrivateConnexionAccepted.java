@@ -15,10 +15,21 @@ public class PrivateConnexionAccepted extends AbstractCommonMessage implements F
 		id = null;
 	}
 	
+	/**
+	 * Accept method for visiting the PrivateConnexionAccepted object
+	 * 
+	 * @param frameVisitor the FrameVisitor for visiting the PrivateConnexion object
+	 * */
 	public void accept(FrameVisitor frameVisitor){
 		frameVisitor.visit(this);
 	}
-
+	
+	/**
+	 * Gets the connect id from the private connection
+	 * 
+	 * @return the id
+	 * @throws IllegalStateException if the request don't have id
+	 * */
 	public Long getId() {
 		if( id == null) {
 			throw new IllegalStateException("request with no id");

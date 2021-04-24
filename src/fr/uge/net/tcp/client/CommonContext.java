@@ -64,7 +64,6 @@ abstract class CommonContext {
 	 *
 	 * @throws IOException
 	 */
-
 	public void doWrite() throws IOException {
 		bbout.flip();
 		sc.write(bbout);

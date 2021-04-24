@@ -12,6 +12,9 @@ import fr.uge.net.tcp.responses.Response.Codes;
 
 class ServerOperations {
 	
+	/**
+	 * Private class which represents the different private connections of a client
+	 */
 	private class ClientConnexions{
 		private final String login;
 		private final HashSet<Long> connexionsIds;
@@ -22,6 +25,10 @@ class ServerOperations {
 		}
 	}
 
+	/**
+	 * Private class which represents a client and their connection status
+	 * to the server 
+	 */
 	private class PrivateConnexionSocket{
 		private Context context ; // Can be Null
 		private boolean connected; // false
@@ -48,6 +55,14 @@ class ServerOperations {
 		this.currentPrivateConnexions = new HashMap<Long, SimpleEntry<PrivateConnexionSocket, PrivateConnexionSocket>>();
 	}
 	
+	/**
+	 * Registers the client on the server, by their login and socket Channel used to
+	 * connect to the server
+	 * @param login the client login
+	 * @param sc the socket channel of the client
+	 * @return the LOGIN_ACCEPTED code if the login is doesn't exist in the server,
+	 * otherwise the LOGIN_REFUSED code
+	 */
 	Codes registerLogin(String login, SocketChannel sc) {
 		Objects.requireNonNull(login);
 		Objects.requireNonNull(sc);
@@ -62,11 +77,10 @@ class ServerOperations {
 	}
 
 	/**
-	 * Checks if the client connected is same than the login gives in parameter
+	 * Checks if the client connected have the same login than the login passed in parameters
 	 * using the socket channel
-	 * 
-	 * @param login
-	 * @param sc
+	 * @param login login of the client sending the request
+	 * @param sc 
 	 * @return true if it's the same and false in the other cases
 	 */
 	boolean validUser(String login, SocketChannel sc) {
@@ -79,10 +93,12 @@ class ServerOperations {
 	
 	
 	/**
-	 * Checks if the connection is establish
+	 * Checks if the private connection is accepted between two clients by
+	 * the connection connectId given by the server previously ,
+	 * add the connectId as a client ready to connect
 	 * 
-	 * @param context
-	 * @param connectId
+	 * @param context Context of the client ready to connect
+	 * @param connectId id of the private connection
 	 * @return true if the connection is establish and false in the other case
 	 */
 	boolean establishConnection(Context context, long connectId) {
@@ -101,7 +117,7 @@ class ServerOperations {
 	}
 	
 	/**
-	 * Gets the context of two clients using the connect id
+	 * Gets the private context of two clients as SimpleEntry using the connect id
 	 * 
 	 * @param connectId
 	 * @return the contexts of this clients
@@ -115,8 +131,7 @@ class ServerOperations {
 	}
 	
 	/**
-	 * Removes a client with his id gived in parameter
-	 * 
+	 * Removes a client with his id passed in parameter
 	 * @param id
 	 */
 	void removeClient(long id) {
@@ -155,11 +170,9 @@ class ServerOperations {
 	}
 	
 	/**
-	 * Removes a client with his socket channel gived in parameter
-	 * 
-	 * @param sc
+	 * Removes a client with his socket channel passed in parameter
+	 * @param sc SocketChannel of the client to be removed
 	 */
-	
 	void removeClient(SocketChannel sc) {
 
 		Objects.requireNonNull(sc);

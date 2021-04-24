@@ -15,7 +15,7 @@ public class MessageResponse implements Response {
 		private static int MAX_MSG_SIZE = 1024;
 
 		/**
-		 * Sets the target login for the builder of a message response packet 
+		 * Sets the target login for the builder
 		 * @param targetLogin
 		 * @return the builder
 		 */
@@ -32,8 +32,7 @@ public class MessageResponse implements Response {
 		}
 
 		/**
-		 * Set the connect id for the builder of the message response packet
-		 * 
+		 * Set the connect id for the builder
 		 * @param connexionId
 		 * @return the builder
 		 */
@@ -44,8 +43,7 @@ public class MessageResponse implements Response {
 		}
 
 		/**
-		 * Sets the login for the builder of the message response packet
-		 * 
+		 * Sets the login for the builder
 		 * @param login
 		 * @return the builder
 		 */
@@ -62,10 +60,10 @@ public class MessageResponse implements Response {
 		}
 
 		/**
-		 * Sets the message for the builder of the message response
+		 * Sets the message for the builder
 		 * 
 		 * @param message
-		 * @return 
+		 * @return the builder
 		 */
 		public Builder setMessage(String message) {
 			Objects.requireNonNull(message);
@@ -132,12 +130,17 @@ public class MessageResponse implements Response {
 	}
 
 
-
+	/**
+	 * @return Codes of the response in the ByteBuffer
+	 */
 	@Override
 	public Codes getResponseCode() {
 		return messageCode;
 	}
 
+	/**
+	 * @return size of the ByteBuffer  
+	 */
 	@Override
 	public int size() {
 		int size =0;
@@ -161,6 +164,10 @@ public class MessageResponse implements Response {
 
 	}
 
+	/**
+	 * create a response buffer from the info of the builder
+	 * @return a ByteBuffer in write-mode with the info sent in builder 
+	 */
 	@Override
 	public ByteBuffer getResponseBuffer() {
 		var internalBuffer = ByteBuffer.allocate(size());

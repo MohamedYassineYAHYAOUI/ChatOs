@@ -9,12 +9,21 @@ public class EstablishConnexion implements Frame{
 		this.id = id;
 	}
 	
-	
+	/**
+	 * Accept method for visiting the EstablishConnexion object
+	 * 
+	 * @param frameVisitor the FrameVisitor for visiting the EstablishConnexion object
+	 * */
 	@Override
 	public void accept(FrameVisitor frameVisitor) {
 		frameVisitor.visit(this);
 	}
 	
+	/**
+	 * Gets connect_id from a private connection established
+	 * 
+	 * @return the id
+	 * */	
 	public Long getId() {
 		return id;
 	}
