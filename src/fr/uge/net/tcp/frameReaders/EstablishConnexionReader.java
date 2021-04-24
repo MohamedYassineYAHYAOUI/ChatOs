@@ -8,12 +8,9 @@ import java.util.function.Function;
 import fr.uge.net.tcp.visitor.Frame;
 
 
-/*
-EstablishConnexionReader<Long, establishConnexion>
-EstablishConnexionReader<String, ServerConnection>
-*/
 
-public class EstablishConnexionReader<Q ,T extends Frame> implements Reader<T>{
+
+class EstablishConnexionReader<Q ,T extends Frame> implements Reader<T>{
 
 	enum State {
 		DONE, WAITING, ERROR

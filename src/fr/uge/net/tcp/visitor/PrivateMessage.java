@@ -2,15 +2,13 @@ package fr.uge.net.tcp.visitor;
 
 import java.util.Objects;
 
-public class PrivateMessage extends Frame {
+public class PrivateMessage extends AbstractCommonMessage implements Frame {
 	
-	private final String receiver; 
-	private final String sender;
+
 	private final String message;
 	
 	public PrivateMessage(String sender, String receiver, String message) {
-		this.receiver = Objects.requireNonNull(receiver);
-		this.sender = Objects.requireNonNull(sender);
+		super(sender, receiver);
 		this.message = Objects.requireNonNull(message);
 	}
 	
@@ -22,13 +20,6 @@ public class PrivateMessage extends Frame {
 	public String getMessage() {
 		return message;
 	}
-	
-	public String getReceiver() {
-		return receiver;
-	}
-	
-	public String getSender() {
-		return sender;
-	}
+
 	
 }

@@ -4,7 +4,7 @@ import java.nio.ByteBuffer;
 
 import fr.uge.net.tcp.visitor.PrivateMessage;
 
-public class PrivateMessageReader extends AbstractCommonReader<PrivateMessage> implements Reader<PrivateMessage>{
+class PrivateMessageReader extends AbstractCommonReader<PrivateMessage> implements Reader<PrivateMessage>{
 	
 
 	private String message;

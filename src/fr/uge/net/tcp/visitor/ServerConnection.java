@@ -2,7 +2,7 @@ package fr.uge.net.tcp.visitor;
 
 import java.util.Objects;
 
-public class ServerConnection extends Frame{
+public class ServerConnection implements Frame{
 	
 	private final String login;
 	

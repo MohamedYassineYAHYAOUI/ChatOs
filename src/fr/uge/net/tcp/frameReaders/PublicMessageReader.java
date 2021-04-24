@@ -10,7 +10,7 @@ import fr.uge.net.tcp.visitor.PublicMessage;
  * readReceiver = redMsg
  *
  */
-public class PublicMessageReader extends AbstractCommonReader<PublicMessage> implements Reader<PublicMessage>{
+class PublicMessageReader extends AbstractCommonReader<PublicMessage> implements Reader<PublicMessage>{
 
 	
 	

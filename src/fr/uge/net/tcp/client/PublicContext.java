@@ -11,23 +11,17 @@ import fr.uge.net.tcp.visitor.Frame;
 
 class PublicContext extends CommonContext implements Context {
 	
-	//static private final Logger logger = Logger.getLogger(PublicContext.class.getName());
-
 	private final ClientFrameVisitor frameVisitor;
-	//private final String login;
-	//private final ClientOS clientOs;
-	//private final ProcessCommands inputProcess;
+
 	private final FrameReader frameReader;
 	private boolean isConnected = false;
 	private boolean canSendCommand = true;
-	//private int threadsCounter = 0;
+
 
 	
 	PublicContext(SelectionKey key, ProcessCommands inputProcess, ClientOS clientOs){
 		super(key);
-		//this.login = login;
-		//this.clientOs = clientOs;
-		//this.inputProcess = inputProcess;
+
 		this.frameVisitor = new ClientFrameVisitor(this, inputProcess, clientOs);
 		this.frameReader = new FrameReader();
 	}
@@ -64,14 +58,6 @@ class PublicContext extends CommonContext implements Context {
 	void setCanSendCommand(boolean value) {
 		synchronized (queue) {
 			canSendCommand = value;
-			/*if(!value) {
-				canSendCommand = value;
-			}else{
-				threadsCounter--;
-				if(threadsCounter ==0) {
-					canSendCommand = value;
-				}
-			}*/
 		}
 	}
 	

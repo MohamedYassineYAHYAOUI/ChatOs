@@ -1,6 +1,6 @@
 package fr.uge.net.tcp.visitor;
 
-public class EstablishConnexion extends Frame{
+public class EstablishConnexion implements Frame{
 
 	private final Long id;
 	

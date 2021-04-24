@@ -1,6 +1,6 @@
 package fr.uge.net.tcp.visitor;
 
-public class ConnectToServer extends Frame {
+public class ConnectToServer implements Frame {
 
 	private final boolean flag;
 	

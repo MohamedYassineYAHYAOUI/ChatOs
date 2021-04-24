@@ -7,7 +7,7 @@ import java.util.function.BiFunction;
 import fr.uge.net.tcp.visitor.Frame;
 
 
-public class PrivateConnexionReader<T extends Frame> extends AbstractCommonReader<T> implements Reader<T> {
+class PrivateConnexionReader<T extends Frame> extends AbstractCommonReader<T> implements Reader<T> {
 
 
 	private final BiFunction<String, String , T> function;

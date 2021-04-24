@@ -2,7 +2,7 @@ package fr.uge.net.tcp.visitor;
 
 import java.util.Objects;
 
-public class PublicMessage extends Frame{
+public class PublicMessage implements Frame{
 
 	private final String sender;
 	private final String message;

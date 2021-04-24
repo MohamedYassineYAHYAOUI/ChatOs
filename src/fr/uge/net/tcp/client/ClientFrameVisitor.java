@@ -16,7 +16,7 @@ import fr.uge.net.tcp.visitor.PrivateMessage;
 import fr.uge.net.tcp.visitor.PublicMessage;
 import fr.uge.net.tcp.visitor.ServerConnection;
 
-public class ClientFrameVisitor implements  FrameVisitor {
+class ClientFrameVisitor implements  FrameVisitor {
 	
 	static private final Logger logger = Logger.getLogger(ClientFrameVisitor.class.getName());
 	

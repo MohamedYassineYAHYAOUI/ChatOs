@@ -1,6 +1,6 @@
 package fr.uge.net.tcp.visitor;
 
-public class DisconnectFromServer extends Frame{
+public class DisconnectFromServer implements Frame{
 
 
 	private final Long id;

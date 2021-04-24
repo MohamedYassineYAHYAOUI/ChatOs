@@ -5,7 +5,7 @@ import java.nio.ByteBuffer;
 import fr.uge.net.tcp.visitor.PrivateConnexionAccepted;
 
 
-public class PrivateConnexionAcceptedReader extends AbstractCommonReader<PrivateConnexionAccepted> implements Reader<PrivateConnexionAccepted>{
+class PrivateConnexionAcceptedReader extends AbstractCommonReader<PrivateConnexionAccepted> implements Reader<PrivateConnexionAccepted>{
 
 
 	private Long id;

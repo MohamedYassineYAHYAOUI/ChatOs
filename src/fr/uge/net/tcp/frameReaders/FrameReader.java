@@ -16,37 +16,9 @@ import fr.uge.net.tcp.visitor.ServerConnection;
 public class FrameReader implements Reader<Frame> {
 	
 	private final IntReader intReader = new IntReader();
-	private PublicMessageReader publicMessageReader = new PublicMessageReader(); // Trame: String - String
-	
-	private PrivateMessageReader privateMessageReader = new PrivateMessageReader(); //Trame: (Requester) (Receiver) (Message), Type : String - String - String
-	private PrivateConnexionAcceptedReader privateConnexionAcceptedReader = new PrivateConnexionAcceptedReader();  //Trame: (Requester) (Receiver) (ID), Type : String - String - Long
 
-	private PrivateConnexionReader<PrivateConnexionRequest> privateConnexionRequest; //Trame : (Requester) (Receiver) , type : String - String
-	private PrivateConnexionReader<PrivateConnexionRefused> privateConnexionRefused; //Trame : (Requester) (Receiver) , type : String - String
-	private PrivateConnexionReader<PrivateConnexionAccepted> privateConnexionAccepted; //Trame : (Requester) (Receiver) , type : String - String
-
-	private EstablishConnexionReader<Long, EstablishConnexion> establishConnexionReader; //Trame : (Login) , type : Long
-	private EstablishConnexionReader<String, ServerConnection> serverConnectionReader; //Trame : (ID) , type : String
-	private EstablishConnexionReader<Long, DisconnectFromServer> disconnectFromServer; //Trame : (Login) , type : Long
-
-	
 	private Frame frame ;
 
-	public FrameReader(){
-		
-		privateConnexionRequest= new PrivateConnexionReader<>((requester, target)->{return new PrivateConnexionRequest((String) requester, (String) target);});
-		privateConnexionRefused = new PrivateConnexionReader<>((requester, target)->{return new PrivateConnexionRefused((String) requester, (String) target);});
-		privateConnexionAccepted = new PrivateConnexionReader<>((requester, target)->{return new PrivateConnexionAccepted((String) requester, (String) target);});
-		establishConnexionReader = new EstablishConnexionReader<>(new LongReader(), (id) ->{return new EstablishConnexion((Long)id);});
-		serverConnectionReader = new EstablishConnexionReader<>(new StringReader(), (login) ->{return new ServerConnection((String)login);});
-		disconnectFromServer = new EstablishConnexionReader<>(new LongReader(), (id) ->{return new DisconnectFromServer((Long)id);});
-	}
-	
-	
-	
-	
-	
-	
 	public boolean processOpCode(ByteBuffer bb) {
 		switch(intReader.process(bb)) {
 		case DONE:
@@ -59,8 +31,7 @@ public class FrameReader implements Reader<Frame> {
 			return false;
 		}
 	}
-	
-	
+
 	
 	public Codes processCode() {
 		var value = intReader.get();
@@ -82,14 +53,12 @@ public class FrameReader implements Reader<Frame> {
 			}
 			return res;
 	 }
-	
 	@Override
 	public ProcessStatus process(ByteBuffer bb) {
 		try {
 			if(!processOpCode(bb)) {
 				return ProcessStatus.REFILL;
 			}
-			
 			switch(processCode()) {
 			case LOGIN_ACCEPTED:
 				frame = new ConnectToServer(true);
@@ -98,28 +67,27 @@ public class FrameReader implements Reader<Frame> {
 				frame = new ConnectToServer(false);
 				return ProcessStatus.DONE;
 			case PUBLIC_MESSAGE_RECEIVED:
-				return process(bb, publicMessageReader);
+				return process(bb, new PublicMessageReader());
 			case PRIVATE_MESSAGE_RECEIVED:
-				return process(bb, privateMessageReader);
+				return process(bb, new PrivateMessageReader());
 			case REQUEST_PRIVATE_CONNEXION:
-				return process(bb, privateConnexionRequest);
+				return process(bb, new PrivateConnexionReader<>((requester, target)->{return new PrivateConnexionRequest((String) requester, (String) target);}));
 			case REFUSE_PRIVATE_CONNEXION:
-				return process(bb, privateConnexionRefused);
+				return process(bb, new PrivateConnexionReader<>((requester, target)->{return new PrivateConnexionRefused((String) requester, (String) target);}));
 			case ID_PRIVATE:
-				return process(bb, privateConnexionAcceptedReader);
+				return process(bb, new PrivateConnexionAcceptedReader());
 			case REQUEST_SERVER_CONNECTION:
-				return process(bb, serverConnectionReader);
+				return process(bb, new EstablishConnexionReader<>(new StringReader(), (login) ->{return new ServerConnection((String)login);}));
 			case PUBLIC_MESSAGE_SENT:
-				return process(bb, publicMessageReader);
+				return process(bb, new PublicMessageReader());
 			case PRIVATE_MESSAGE_SENT:
-				return process(bb, privateMessageReader);
+				return process(bb, new PrivateMessageReader());
 			case ACCEPT_PRIVATE_CONNEXION:
-				return process(bb, privateConnexionAccepted);
+				return process(bb, new PrivateConnexionReader<>((requester, target)->{return new PrivateConnexionAccepted((String) requester, (String) target);}));
 			case LOGIN_PRIVATE:
-				return process(bb, establishConnexionReader);
+				return process(bb, new EstablishConnexionReader<>(new LongReader(), (id) ->{return new EstablishConnexion((Long)id);}));
 			case DISCONNECT_PRIVATE:
-				return process(bb, disconnectFromServer);
-			
+				return process(bb, new EstablishConnexionReader<>(new LongReader(), (id) ->{return new DisconnectFromServer((Long)id);}));
 			default:
 				throw new IllegalStateException("invalid opCode");
 			}
@@ -127,7 +95,8 @@ public class FrameReader implements Reader<Frame> {
 			reset();
 			return ProcessStatus.ERROR;
 		}
-	}
+	}	
+
 	
 	@Override
 	public Frame get() {

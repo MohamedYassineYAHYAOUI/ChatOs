@@ -26,8 +26,7 @@ public class ClientOS {
 	private final String login;
 	private final Thread console; // thread des input des commandes
 	private final ProcessCommands inputProcess;
-	//private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
-	//
+
 	private final HashMap<String, SimpleEntry<PrivateContext, String>> privateConnexion = new HashMap<>();
 
 	private PublicContext uniqueContext;
