@@ -3,21 +3,19 @@ package fr.uge.net.tcp.client;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-
+import java.nio.ByteBuffer;
 import java.nio.channels.Channel;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
 import java.util.Objects;
 import java.util.Scanner;
-import java.util.concurrent.ArrayBlockingQueue;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.logging.Logger;
 
 import fr.uge.net.tcp.responses.MessageResponse;
 import fr.uge.net.tcp.responses.Response.Codes;
-
 
 public class ClientOS {
 	static private Logger logger = Logger.getLogger(ClientOS.class.getName());
@@ -27,13 +25,13 @@ public class ClientOS {
 	private final InetSocketAddress serverAddress;
 	private final String login;
 	private final Thread console; // thread des input des commandes
-	private final ArrayBlockingQueue<String> commandQueue = new ArrayBlockingQueue<>(10);
-	//
+	private final ProcessCommands inputProcess;
+
 	private final HashMap<String, SimpleEntry<PrivateContext, String>> privateConnexion = new HashMap<>();
 
-	private Context uniqueContext;
+	private PublicContext uniqueContext;
 	private final MessageResponse.Builder packetBuilder;
-
+	
 	/**
 	 * constructor for clientOS 
 	 * @param login client
@@ -42,13 +40,15 @@ public class ClientOS {
 	 */
 	public ClientOS(String login, InetSocketAddress serverAddress) throws IOException {
 		this.serverAddress = Objects.requireNonNull(serverAddress);
+		
 		this.login = Objects.requireNonNull(login);
 		this.packetBuilder = new MessageResponse.Builder();
 		this.sc = SocketChannel.open();
 		this.selector = Selector.open();
 		this.console = new Thread(this::consoleRun);
+		this.inputProcess = new ProcessCommands(login, this);
 	}
-
+	
 	/**
 	 * read the next line on the input and send it as a command to sendCommand
 	 * if socketChannel is not open ask user to reconnect
@@ -74,7 +74,8 @@ public class ClientOS {
 			logger.info("Console thread stopping");
 		}
 	}
-
+	
+	
 	/**
 	 * Send a command to the selector via commandQueue and wake it up
 	 * command must not be empty or blank
@@ -87,7 +88,8 @@ public class ClientOS {
 		try {
 			synchronized (serverAddress) {
 				if (!msg.isEmpty() && !msg.isBlank()) {
-					commandQueue.add(msg);
+					//commandQueue.add(msg);
+					inputProcess.addToQueue(msg);
 				}
 			}
 			selector.wakeup();
@@ -95,22 +97,19 @@ public class ClientOS {
 			logger.warning("queue is full, msg ignored");
 		}
 	}
-
+	
 	/**
 	 * build the packet asking to connect to server, and queue the packet in 
 	 * the main context, then wake up the selector
 	 */
-	private void processConnection() {
+	private void processConnection(){
 		synchronized (serverAddress) {
 			packetBuilder.setPacketCode(Codes.REQUEST_SERVER_CONNECTION).setLogin(login);
 			uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer());
 		}
 		selector.wakeup();
 	}
-
-	void removePrivateConnection(String targetLogin) {
-		privateConnexion.remove(targetLogin);
-	}
+	
 
 	/**
 	 * create private connection context for with the client targetlogin,
@@ -139,119 +138,64 @@ public class ClientOS {
 			logger.warning("error while creating private connection " + e.getMessage());
 		}
 	}
+	
 	/**
-	 * request from the target client a respond to the private request from login_requester
-	 * launch a thread requesting the answer
-	 * block the consoleRun thread if all the threads didn't finish
-	 * @param login_requester requester login
-	 * @param login_target target login
-	 * @param threadOrder the order of the request, so two requests won't overlap
+	 * Gets the private connection with another user gived in parameter
+	 * 
+	 * @param otherUser the other user
+	 * @return the private connection
 	 */
-	void requestPrivateConnection(String login_requester, String login_target, int threadOrder) {
-		if (!login_target.equals(login)) {
-			return;
+	SimpleEntry<PrivateContext, String> getPrivateConnexion(String otherUser){
+		synchronized (serverAddress) {
+			return privateConnexion.get(otherUser);
 		}
-		System.out.println("private connexion request form " + login_requester + ": Accept(Y) or refuse(N)");
-		new Thread(() -> {
-			try {
-				uniqueContext.setCanSendCommand(false);
-				while (!Thread.interrupted()) {
-					if (!commandQueue.isEmpty() && uniqueContext.currentThreadOrder() == threadOrder) { // if its not the turn of the current thread
-						var response = commandQueue.poll();
-						if (response.toUpperCase().equals("Y")) {
-							System.out.println("ACCEPTED");
-							packetBuilder.setPacketCode(Codes.ACCEPT_PRIVATE_CONNEXION).setLogin(login_requester)
-									.setTargetLogin(login_target);
-						} else if (response.toUpperCase().equals("N")) {
-							System.out.println("REFUSED");
-							packetBuilder.setPacketCode(Codes.REFUSE_PRIVATE_CONNEXION).setLogin(login_requester)
-									.setTargetLogin(login_target);
-						} else {
-							System.out.println("invalid choice, private connexion request form " + login_requester
-									+ ": Accept(Y) or refuse(N)");
-							continue;
-						}
-						synchronized (commandQueue) {
-							uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer()); //queue target client response 
-							uniqueContext.doWrite(); // to update the buffer
-							uniqueContext.setCanSendCommand(true); // release the consoleRun thread
-						}
-						return;
-					}
-				}
-			} catch (Exception e) {
-				uniqueContext.setCanSendCommand(true);
-				logger.warning("Thread private connexion inturrepted " + e);
-				return;
-			}
-		}).start();
-
 	}
-
+	
 	/**
-	 * Processes the command from commandQueue
-	 * realize a process depending on the command 
+	 * Removes the private connection with the target client
+	 * gived in parameter
+	 * 
+	 * @param targetLogin the target login of the client 
 	 */
-
-	private void processCommands() {
-
-		while (!commandQueue.isEmpty()) {
-
-			try {
-				var msg = commandQueue.poll();
-				String targetLogin = null;
-
-				if (msg.startsWith("/")) {
-					var tmp = msg.split(" ");
-					targetLogin = tmp[0].substring(1); // target Login
-					if (targetLogin.equals(login)) { // if request to the client himself, ignore
-						continue;
-					}
-					var pc = privateConnexion.get(targetLogin);
-					if (tmp.length == 1 && pc != null) { //disconnect from a private connection
-						if (pc.getKey() != null) { // the connection was established (not pending)
-							uniqueContext.queueMessage(packetBuilder.setPacketCode(Codes.DISCONNECT_PRIVATE)
-									.setId(pc.getKey().getId()).build().getResponseBuffer());
-						}
-						removePrivateConnection(targetLogin); 
-						continue;
-					}
-					String message = msg.substring(targetLogin.length() + 2); //client inital message
-
-					if (pc == null) { // no request for the target
-						packetBuilder.setPacketCode(Codes.REQUEST_PRIVATE_CONNEXION).setLogin(login)
-								.setTargetLogin(targetLogin); // buffer builder
-						privateConnexion.put(targetLogin, new SimpleEntry<PrivateContext, String>(null, message)); //store the initial message
-					} else {
-						if (pc.getKey() != null) { // connection established
-							pc.getKey().queueMessage(packetBuilder.setMessage(message).build().getResponseBuffer());
-						}
-						continue;
-					}
-
-				} else if (msg.startsWith("@")) {// private message
-					targetLogin = msg.split(" ")[0].substring(1);
-					if (targetLogin.equals(login)) { //if same user, ignore
-						continue;
-					}
-					packetBuilder.setPacketCode(Codes.PRIVATE_MESSAGE_SENT).setLogin(login).setTargetLogin(targetLogin)
-							.setMessage(msg.substring(targetLogin.length() + 2)); // buffer builder
-				} else { // public message
-					packetBuilder.setPacketCode(Codes.PUBLIC_MESSAGE_SENT).setLogin(login).setMessage(msg);
-				}
-				if (targetLogin != null && targetLogin.equals(login)) {
-					continue;
-				}
-				uniqueContext.queueMessage(packetBuilder.build().getResponseBuffer()); // queue message 
-
-			} catch (StringIndexOutOfBoundsException e) {
-				logger.info("invalide request, ignored");
-			} catch (IllegalArgumentException e) {
-				logger.info(e.getMessage());
-			}
+	void removePrivateConnection(String targetLogin) {
+		synchronized (serverAddress) {
+			privateConnexion.remove(targetLogin);
 		}
 	}
 
+	/**
+	 * Gets the client login
+	 * 
+	 * @return the login
+	 */
+	String getLogin() {
+		return login;
+	}
+	
+	/**
+	 * Queue message for the packet
+	 * 
+	 * @param bb the packet
+	 */
+	void queueMessage(ByteBuffer bb) {
+		Objects.requireNonNull(bb);
+		synchronized (serverAddress) {
+			uniqueContext.queueMessage(bb);
+		}
+	}
+	
+	/**
+	 * Adds a private connection
+	 * 
+	 * @param otherClient the client with which a private connection must be created
+	 * @param se the login client with the private context
+	 */
+	void addPrivateConnexion(String otherClient, SimpleEntry<PrivateContext, String> se ) {
+		Objects.requireNonNull(otherClient);
+		Objects.requireNonNull(se);
+		privateConnexion.put(otherClient, se);
+	}
+	
 	/**
 	 * create the unique context, and connect it to the server
 	 * main selector loop 
@@ -260,7 +204,7 @@ public class ClientOS {
 	public void launch() throws IOException {
 		sc.configureBlocking(false);
 		var key = sc.register(selector, SelectionKey.OP_CONNECT);
-		uniqueContext = new Context(key, login, this);
+		uniqueContext = new PublicContext(key, inputProcess, this);
 		key.attach(uniqueContext);
 		sc.connect(serverAddress);
 		console.start();
@@ -274,7 +218,7 @@ public class ClientOS {
 				}
 				selector.select(this::treatKey);
 				if (uniqueContext.isConnected() && uniqueContext.canSendCommand()) { // if the command can be processed by the client
-					processCommands();
+					inputProcess.processUserInput();
 				}
 			} catch (UncheckedIOException tunneled) {
 				throw tunneled.getCause();
@@ -286,7 +230,7 @@ public class ClientOS {
 	 * @param key the current key of the context
 	 */
 	private void treatKey(SelectionKey key) {
-		var context = (GeneralContext) key.attachment();
+		var context = (Context) key.attachment();
 		try {
 			if (key.isValid() && key.isConnectable()) {
 				context.doConnect();
@@ -305,6 +249,12 @@ public class ClientOS {
 		}
 	}
 
+
+	/**
+	 * Close the client connection
+	 * 
+	 * @param key
+	 */
 	private void silentlyClose(SelectionKey key) {
 		Channel sc = (Channel) key.channel();
 		try {
@@ -325,6 +275,4 @@ public class ClientOS {
 	private static void usage() {
 		System.out.println("Usage : ClientOS login hostname port");
 	}
-
-
 }

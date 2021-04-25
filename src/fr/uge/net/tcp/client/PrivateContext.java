@@ -6,19 +6,16 @@ import java.nio.channels.SelectionKey;
 import java.nio.charset.Charset;
 import java.util.Objects;
 
+import fr.uge.net.tcp.frameReaders.FrameReader;
 import fr.uge.net.tcp.responses.MessageResponse;
 import fr.uge.net.tcp.responses.Response.Codes;
 
-/**
- * the private context for the private connection of the server
- * 
- *	initialMsg can be NULL
- */
-class PrivateContext extends CommonContext implements GeneralContext{
 
+class PrivateContext extends CommonContext implements Context{
 	static private final Charset UTF8 = Charset.forName("UTF8");
 	static private final MessageResponse.Builder packetBuilder = new MessageResponse.Builder();
 	
+	private final FrameReader frameReader;
 	private String initialMsg; // can be null
 	private final String targetLogin; // other client in private connection
 	private boolean established = false; // if the client is established connection yet 
@@ -29,20 +26,17 @@ class PrivateContext extends CommonContext implements GeneralContext{
 		this.targetLogin = Objects.requireNonNull(targetLogin);
 		this.initialMsg = initialMsg;
 		this.id =id;
+		this.frameReader = new FrameReader();
 	}
 
 	static PrivateContext CreateContext(SelectionKey key, String targetLogin, long id, String initialMsg) {
-		var pc = new PrivateContext(key, targetLogin, initialMsg, id);
-
+		var pc = new PrivateContext(key, targetLogin, initialMsg, id );
+		
 		packetBuilder.setPacketCode(Codes.LOGIN_PRIVATE).setId(id);
 		var bb = packetBuilder.build().getResponseBuffer().flip();
 		pc.bbout.put(bb);
-		
 		return pc;
-
 	}
-
-
 
 	/**
 	 * Try to fill bbout from the message queue
@@ -61,7 +55,7 @@ class PrivateContext extends CommonContext implements GeneralContext{
 	}
 	
 	/**
-	 *  process bbin for the 
+	 *  process bbin 
 	 * @throws IOException
 	 */
 	private void processIn() throws IOException {
@@ -74,12 +68,10 @@ class PrivateContext extends CommonContext implements GeneralContext{
 			bbin.compact();
 		}else {
 			try {
-				if(!codeProcess.process(bbin)) {
+				if(!frameReader.processOpCode(bbin)) {
 					return;
 				}
-
-				if(codeProcess.receivedCode() && ( codeProcess.getProcessCode() == Codes.ESTABLISHED)) {
-
+				if(frameReader.processCode() ==  Codes.ESTABLISHED) {
 					established = true;
 					if (initialMsg != null) {
 						var bb = ByteBuffer.allocate(Character.BYTES * initialMsg.length());
@@ -91,12 +83,14 @@ class PrivateContext extends CommonContext implements GeneralContext{
 				silentlyClose();
 				closed = true;
 			}finally {
-				codeProcess.reset();
+				frameReader.reset();
 			}
 		}
 	}
 	
-
+	/**
+	 *read the bbin buffer
+	 */
 	public void doRead() throws IOException {
 		if (sc.read(bbin) == -1) {
 			closed = true;
@@ -105,6 +99,8 @@ class PrivateContext extends CommonContext implements GeneralContext{
 		updateInterestOps();
 	}
 
-
-
+	@Override
+	public void setConnected(boolean value) {
+		established = value;
+	}
 }

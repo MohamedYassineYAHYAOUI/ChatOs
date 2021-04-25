@@ -3,7 +3,6 @@ package fr.uge.net.tcp.server;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetSocketAddress;
-
 import java.nio.channels.Channel;
 import java.nio.channels.SelectableChannel;
 import java.nio.channels.SelectionKey;
@@ -11,25 +10,19 @@ import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
-import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.responses.MessageResponse;
-import fr.uge.net.tcp.responses.Response.Codes;
+import fr.uge.net.tcp.responses.Response;
+
 
 class Server {
-
 	static private Logger logger = Logger.getLogger(Server.class.getName());
 
 	private final ServerSocketChannel serverSocketChannel;
 	private final Selector selector;
 	private final ServerOperations serverOperations;
-	private final MessageResponse.Builder Packetbuilder = new MessageResponse.Builder();
-
-	private final Random random = new Random();
 
 	public Server(int port) throws IOException {
 		serverSocketChannel = ServerSocketChannel.open();
@@ -37,192 +30,10 @@ class Server {
 		selector = Selector.open();
 		serverOperations = new ServerOperations();
 	}
-
-	/**
-	 * Register a client in the server
-	 * 
-	 * @param login the login of the client
-	 * @param key the context of the client
-	 */
-	void registerLogin(String login, SelectionKey key) {
-		var context = (Context) key.attachment();
-		var codeResponse = serverOperations.regesterLogin(login, (SocketChannel) key.channel());
-		context.queueResponse(Packetbuilder.setPacketCode(codeResponse).build());
-	}
-
-	/**
-	 * Send a message from a client to all the other clients except himself
-	 * 
-	 * @param login the login of the client which sends the message
-	 * @param message the message to send
-	 * @param key the context of the client which sends the message
-	 */
-	void broadcast(String login, String message, SelectionKey key) {
-		var sc = (SocketChannel) key.channel();
-
-		if (serverOperations.validUser(login, sc)) {
-			var senderContext = (Context) key.attachment();
-			for (var clientKey : selector.keys()) {
-				var context = (Context) clientKey.attachment();
-				if (context != null && !context.equals(senderContext) && context.isMainChannel()) {
-					Packetbuilder.setPacketCode(Codes.PUBLIC_MESSAGE_RECEIVED).setLogin(login).setMessage(message);
-					context.queueResponse(Packetbuilder.build());
-				}
-			}
-		} else {
-			logger.log(Level.INFO, "ignored invalide request from Client");
-		}
-	}
-
-	/**
-	 * Removes a client with his key
-	 * @param key
-	 */
-	void removeClient(SelectionKey key) {
-		var sc = (SocketChannel) key.channel();
-		serverOperations.removeClient(sc);
-	}
-
-	/**
-	 * Removes a client with his id
-	 * @param id
-	 */
-	void removeClient(long id) {
-		serverOperations.removeClient(id);
-	}
+	
 	
 	/**
-	 * Establishes a private connection using the connect if and the key
-	 * @param connectId
-	 * @param key
-	 */
-	void establishConnection(long connectId, SelectionKey key) {
-		Objects.requireNonNull(key);
-		
-		System.out.println("login private "+connectId);
-		var context = (Context) key.attachment();
-		if (serverOperations.establishConnection(context, connectId)) {
-			var clientsChannels = serverOperations.getClientsContext(connectId);
-			Packetbuilder.setPacketCode(Codes.ESTABLISHED);
-			System.out.println("SET CONNECTIOn");
-			clientsChannels.getKey().setPrivateConnection(clientsChannels.getValue());
-
-			clientsChannels.getKey().queueResponse(Packetbuilder.build());
-
-			Packetbuilder.setPacketCode(Codes.ESTABLISHED);
-			clientsChannels.getValue().setPrivateConnection(clientsChannels.getKey());
-			clientsChannels.getValue().queueResponse(Packetbuilder.build());
-		}
-	}
-
-	/**
-	 * Redirects the private connexion request from the requester client to the target client or vice-versa
-	 * 
-	 * @param login_requester the login of the requester client
-	 * @param login_target the login of the target client
-	 * @param key the context of the requester client
-	 * @param codePacket the code for the type of the packet
-	 * @param reverse a boolean if we want to redirect the pack from the target client to the requester client
-	 */
-	void redirectPrivateConnexionRequest(String login_requester, String login_target, SelectionKey key,
-			Codes codePacket, boolean reverse) {
-		var sc = (SocketChannel) key.channel();
-
-		if (!serverOperations.validUser(reverse ? login_target: login_requester, sc)) {
-			logger.log(Level.INFO, "ignored invalide request from Client");
-			return;
-		}
-		for (var clientKey : selector.keys()) {
-			var context = (Context) clientKey.attachment();
-			if (context == null) {
-				continue;
-			}
-			var scTarget = (SocketChannel) clientKey.channel();
-			if (serverOperations.validUser(reverse ? login_requester : login_target , scTarget)
-					&& context.isMainChannel()) {
-
-				Packetbuilder.setPacketCode(codePacket).setLogin(login_requester)
-				.setTargetLogin(login_target); // buffe builder
-
-				context.queueResponse(Packetbuilder.build());
-				return;
-			}
-		}
-	}
-
-	/**
-	 * Redirects the connect id to the requester client and the target client
-	 * 
-	 * @param login_requester the login of the requester client
-	 * @param login_target the login of the target client
-	 * @param key the context
-	 */
-	void redirectIdPacket(String login_requester, String login_target, SelectionKey key) {
-		var target_sc = (SocketChannel) key.channel();
-		var target_context = (Context) key.attachment();
-		if (!serverOperations.validUser(login_target, target_sc)) {
-			logger.log(Level.INFO, "ignored invalide request from Client");
-			return;
-		}
-		for (var clientKey : selector.keys()) {
-			var sender_Context = (Context) clientKey.attachment();
-			if (sender_Context == null) {
-				continue;
-			}
-			var sender_sc = (SocketChannel) clientKey.channel();
-
-			if (serverOperations.validUser(login_requester, sender_sc) && target_context.isMainChannel()
-					&& sender_Context.isMainChannel()) {
-
-				var idCode = random.nextLong();
-
-				serverOperations.registerPrivateConnection(idCode, sender_sc, target_sc);
-
-				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester).setTargetLogin(login_target)
-						.setId(idCode); // buffer builder
-				target_context.queueResponse(Packetbuilder.build());
-				Packetbuilder.setPacketCode(Codes.ID_PRIVATE).setLogin(login_requester).setTargetLogin(login_target)
-						.setId(idCode); // buffer builder
-				sender_Context.queueResponse(Packetbuilder.build());
-
-				return;
-			}
-		}
-
-	}
-
-	/**
-	 * Send a private message in a private connexion from the sender client to the target client
-	 * 
-	 * @param senderLogin the sender login
-	 * @param targetLogin the target login
-	 * @param message the message to send
-	 * @param key the context
-	 */
-	void sendPrivateMessage(String senderLogin, String targetLogin, String message, SelectionKey key) {
-		var sc = (SocketChannel) key.channel();
-
-		if (serverOperations.validUser(senderLogin, sc)) {
-			for (var clientKey : selector.keys()) {
-				var context = (Context) clientKey.attachment();
-				if (context != null) {
-					var scTarget = (SocketChannel) clientKey.channel();
-					if (serverOperations.validUser(targetLogin, scTarget) && context.isMainChannel()) {
-
-						Packetbuilder.setPacketCode(Codes.PRIVATE_MESSAGE_RECEIVED).setLogin(senderLogin)
-								.setMessage(message);
-						context.queueResponse(Packetbuilder.build());
-						return;
-					}
-				}
-			}
-		} else {
-			logger.log(Level.INFO, "ignored invalide request from Client");
-		}
-	}
-
-	/**
-	 * Accept a connection
+	 * Accept a connection from the server
 	 * 
 	 * @param key
 	 * @throws IOException
@@ -234,7 +45,7 @@ class Server {
 		if (sc != null) {
 			sc.configureBlocking(false);
 			var scKey = sc.register(selector, SelectionKey.OP_READ);
-			scKey.attach(new Context(this, scKey));
+			scKey.attach(new Context(this, scKey,serverOperations));
 		}
 	}
 
@@ -259,8 +70,9 @@ class Server {
 	}
 
 	/**
-	 * Treat the state of the key gives in parameter
-	 * 
+	 * Treat the state of the key,
+	 * if the selectionkey is valide and can accepte a new connection, then connect
+	 * check if the key can read or/ and write, if do call doread and/or dowrite
 	 * @param key
 	 */
 	private void treatKey(SelectionKey key) {
@@ -287,8 +99,7 @@ class Server {
 	}
 
 	/**
-	 * Close a client
-	 * 
+	 * close and release the key
 	 * @param key
 	 */
 	private void silentlyClose(SelectionKey key) {
@@ -300,6 +111,61 @@ class Server {
 		}
 	}
 
+	/**
+	 * get the client socket channel with the name login
+	 * @param login name of the client 
+	 * @return SocketChannel of the client if the client exists, else null
+	 */
+	SocketChannel getClientSocketChannel(String login) {
+		for (var clientKey : selector.keys()) {
+			var context = (Context) clientKey.attachment();
+			if (context != null) {
+				var scTarget = (SocketChannel) clientKey.channel();
+				if(serverOperations.validUser(login, scTarget)) {
+					return scTarget;
+				}
+			}
+		}
+		return null;
+	}
+	
+	/**
+	 * Send a private  message response to the specific client loginReceiver if they exist
+	 * @param loginReceiver the login of the client which receive the private message
+	 * @param response the message to send to the client
+	 */
+	void sendPrivateMessage(String loginReceiver, Response response) {
+		
+		for (var clientKey : selector.keys()) {
+			var context = (Context) clientKey.attachment();
+			if (context != null) {
+				var scTarget = (SocketChannel) clientKey.channel();
+				System.out.println("loginReceiver" + loginReceiver);
+				if(serverOperations.validUser(loginReceiver, scTarget) && context.isMainChannel()) {
+					System.out.println("test "+loginReceiver);
+					context.queueResponse(response);
+					return;
+				}
+			}
+		}
+	}
+
+	
+/**
+ * Send a message from a client  to all the other clients except himself
+ * @param contextSender the context of the client sending the message
+ * @param request the packet
+ */
+	void broadcast( Context contextSender, Response request ) {
+		
+		for (var clientKey : selector.keys()) {
+			var context = (Context) clientKey.attachment();
+			if (context != null && !context.equals(contextSender) && context.isMainChannel()) {				
+				context.queueResponse(request);
+			}
+		}
+	}
+	
 	/***
 	 * Theses methods are here to help understanding the behavior of the selector
 	 ***/
@@ -319,10 +185,13 @@ class Server {
 		return String.join("|", list);
 	}
 
+
+	
+	
 	/**
 	 * Prints keys
 	 */
-	public void printKeys() {
+	public void printKeys(){
 		Set<SelectionKey> selectionKeySet = selector.keys();
 		if (selectionKeySet.isEmpty()) {
 			System.out.println("The selector contains no key : this should not happen!");

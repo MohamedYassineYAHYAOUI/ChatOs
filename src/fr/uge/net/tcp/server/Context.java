@@ -2,7 +2,6 @@ package fr.uge.net.tcp.server;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
 import java.util.LinkedList;
@@ -11,130 +10,66 @@ import java.util.Queue;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
-import fr.uge.net.tcp.process.GenericValueProcess;
-import fr.uge.net.tcp.process.LoginProcess;
-import fr.uge.net.tcp.readers.LongReader;
-import fr.uge.net.tcp.process.MessageProcess;
-import fr.uge.net.tcp.process.OpCodeProcess;
-import fr.uge.net.tcp.process.Process;
-import fr.uge.net.tcp.readers.StringReader;
 import fr.uge.net.tcp.responses.Response;
 import fr.uge.net.tcp.responses.Response.Codes;
+import fr.uge.net.tcp.visitor.Frame;
+import fr.uge.net.tcp.frameReaders.FrameReader;
+
+
+
 
 class Context {
 
 	static private final int BUFFER_SIZE = 1_024;
 	static private final Logger logger = Logger.getLogger(Context.class.getName());
 
-	final private SelectionKey key;
-	final private SocketChannel sc;
-	final private ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
-	final private ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
-
-	final private Queue<Response> queue = new LinkedList<>();
-	final private Server server;
-
-	private final OpCodeProcess codeProcess = new OpCodeProcess();
-	private Process process;
-	private boolean doneProcessing = true;
+	private final SelectionKey key;
+	private final SocketChannel sc;
+	private final ByteBuffer bbin = ByteBuffer.allocate(BUFFER_SIZE);
+	private final ByteBuffer bbout = ByteBuffer.allocate(BUFFER_SIZE);
+	
+	private final Queue<Response> queue = new LinkedList<>();
+	private final ServerOperations serverOperations;
+	private final FrameReader frameReader;
+	private final ServerFrameVisitor frameVisitor;
 	private boolean mainSocketForClient = false;
 
 	private Context  privateConnetion; // context
-	
-	
-
-
 	private boolean closed = false;
 
-	Context(Server server, SelectionKey key) {
-
+	Context(Server server, SelectionKey key, ServerOperations serverOperations){
 		this.key = key;
 		this.sc = (SocketChannel) key.channel();
-		this.server = server;
+		this.serverOperations = serverOperations;
+		this.frameReader = new FrameReader();
+		this.frameVisitor = new ServerFrameVisitor(server, this, serverOperations);
 	}
 	
 	
 	
 	/**
-	 * Process the content of bbin
-	 *
-	 * The convention is that bbin is in write-mode before the call to process and
-	 * after the call
-	 * 
-	 * @throws IOException
-	 *
+	 * process the bbin of the context 
+	 * bbin is in write mode at the beginning and the end of the method
 	 */
-	void processIn() throws IOException {
-		if (closed) {
-			return;
-		}
-		try {	
-			if(!codeProcess.process(bbin)) {
+	private void processIn() {
+		for(;;) {
+			var status = frameReader.process(bbin);
+			switch(status) {
+			case ERROR:
+				silentlyClose();
 				return;
-			}
-			
-			if(codeProcess.receivedCode() && doneProcessing) {
-				switch(codeProcess.getProcessCode()) {
-				case REQUEST_SERVER_CONNECTION:
-					process = new LoginProcess(codeProcess,  login->{
-						server.registerLogin(login, key);
-						mainSocketForClient = true;
-					});
-					break;
-					
-				case PUBLIC_MESSAGE_SENT:
-					process = new MessageProcess(codeProcess, (login, msg)->server.broadcast(login, msg , key));
-					break;
-					
-				case PRIVATE_MESSAGE_SENT:
-					process = new GenericValueProcess<>(codeProcess, new StringReader(), 
-							(login, target, msg)-> server.sendPrivateMessage(login, target, msg, key) );
-					break;
-				case REQUEST_PRIVATE_CONNEXION:
-					process = new MessageProcess(codeProcess, 
-							(login, target)-> server.redirectPrivateConnexionRequest(login, target , key, Codes.REQUEST_PRIVATE_CONNEXION, false));
-					break;
-				case REFUSE_PRIVATE_CONNEXION:
-					process = new MessageProcess(codeProcess, 
-							(login, target)-> server.redirectPrivateConnexionRequest(login, target, key, Codes.REFUSE_PRIVATE_CONNEXION, true));
-					break;
-					
-				case ACCEPT_PRIVATE_CONNEXION:
-					process = new MessageProcess(codeProcess, 
-							(login, target)->server.redirectIdPacket(login, target, key));
-					break;
-					
-				case LOGIN_PRIVATE:
-					process = new LongReader(codeProcess, id-> server.establishConnection(id, key) );
-					break;
-				case DISCONNECT_PRIVATE:
-					process = new LongReader(codeProcess, id->server.removeClient(id));
-					
-					break;
-				default:
-					logger.log(Level.WARNING, "Invalide packet code from client " + sc.getRemoteAddress());
-				}
-				
-			}
-			
-			if(doneProcessing = process.executeProcess(bbin)) {
-				updateInterestOps();
-			}
-
-		} catch (IllegalArgumentException e) {
-			logger.warning(e.getMessage());
-		} catch (IllegalStateException  | IOException  e) {
-			logger.warning(e.getMessage());
-			
-			silentlyClose();
-			closed = true;
-			key.cancel(); 
-		}finally {
-			if(process != null) {
-				process.reset();
+			case REFILL:
+				return;
+			case DONE:
+				Frame frame = frameReader.get();
+				frameReader.reset();
+				treatFrame(frame);
+				break;
 			}
 		}
 	}
+	
+	
 	
 	/**
 	 * Check if the current channel of a client is the main socket
@@ -145,8 +80,63 @@ class Context {
 	boolean isMainChannel() {
 		return mainSocketForClient;
 	}
+	
+	/**
+	 * Set this context as the main channel for the client
+	 */
+	void setAsMainChannel() {
+		this.mainSocketForClient = true;
+	}
 
-	/*
+	
+	/**
+	 *  
+	 * @param frame product that accepts the visitor
+	 */
+	private void treatFrame(Frame frame) {
+		frame.accept(frameVisitor);
+	}
+	
+	/**
+	 * getter for this context socket Channel
+	 * @return SocketChannel
+	 */
+	SocketChannel contextSocketChannel() {
+		return sc;
+	}
+	
+	/**
+	 * Try to fill bbout from the message queue
+	 * bbout stays in write in this method
+	 */
+	private void processOut() {
+		while (!queue.isEmpty() && bbout.remaining() >= queue.peek().size()) {
+			var response = queue.poll();
+			if (response != null) {
+				bbout.put(response.getResponseBuffer().flip());
+				if (response.getResponseCode() == Codes.LOGIN_REFUSED) {
+					closed = true;
+				}
+			} else {
+				break;
+			}
+		}
+	}
+
+	/**
+	 * Try to fill bbout from the ByteBuffer bb
+	 * bbout stays in write in this method
+	 *@param bb ByteBuffer to fill bbout from
+	 */	
+	private void processOutPrivate(ByteBuffer bb) {
+		if(bbout.remaining() >= bb.position()) {
+			bbout.put(bb.flip());
+			bb.compact();
+		}
+	}
+	
+	
+	/**
 	* Set the private context to a client for a private connection
 	*
 	* @param pcContext the private context
@@ -154,6 +144,10 @@ class Context {
 	void setPrivateConnection(Context pcContext) {
 		this.privateConnetion = Objects.requireNonNull(pcContext);
 	}
+	
+	
+	
+	
 	/**
 	 * Add a message to the message queue, tries to fill bbOut and updateInterestOps
 	 *
@@ -176,7 +170,7 @@ class Context {
 			// ignore exception
 		}
 	}
-
+	
 	/**
 	 * Update the interestOps of the key looking only at values of the boolean
 	 * closed and of both ByteBuffers.
@@ -196,7 +190,7 @@ class Context {
 			intrestOps |= SelectionKey.OP_WRITE;
 		}
 		if (intrestOps == 0) {
-			server.removeClient(key);
+			serverOperations.removeClient(sc);
 			silentlyClose();
 			
 		} else {
@@ -220,40 +214,6 @@ class Context {
 		bbout.compact();
 		updateInterestOps();
 	}
-
-	/**
-	 * Try to fill bbout from the message queue
-	 *
-	 */
-	private void processOut() {
-		while (!queue.isEmpty() && bbout.remaining() >= queue.peek().size()) {
-			var response = queue.poll();
-			if (response != null) {
-				bbout.put(response.getResponseBuffer().flip());
-				if (response.getResponseCode() == Codes.LOGIN_REFUSED) {
-					closed = true;
-				}
-			} else {
-				break;
-			}
-		}
-	}
-
-	
-	/**
-	 * Try to fill bbout from the message queue for a private connection
-	 *
-	 */	
-	private void processOutPrivate(ByteBuffer bb) {
-		if(bbout.remaining() >= bb.position()) {
-			System.out.println("writing in BBOUT");
-			
-			bbout.put(bb.flip());
-			bb.compact();
-		}
-	}
-	
-	
 	
 	/**
 	 * Performs the read action on sc
@@ -276,7 +236,7 @@ class Context {
 		}
 		updateInterestOps();
 	}
-
+	
 	@Override
 	public boolean equals(Object obj) {
 		if (!(obj instanceof Context)) {
@@ -289,5 +249,6 @@ class Context {
 			return false;
 		}
 	}
+	
 
 }

@@ -2,8 +2,8 @@ package fr.uge.net.tcp.server;
 
 import java.io.IOException;
 
+
 public class ServerChatOS {
-	
 	/**
 	 * Main method to launch the server
 	 * 
@@ -25,5 +25,4 @@ public class ServerChatOS {
 	private static void usage() {
 		System.out.println("Usage : ServerChatOS port");
 	}
-
 }
