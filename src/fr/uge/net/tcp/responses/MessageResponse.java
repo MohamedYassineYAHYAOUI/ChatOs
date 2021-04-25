@@ -186,7 +186,6 @@ public class MessageResponse implements Response {
 		if (setId) {
 			internalBuffer.putLong(connexionId);
 		}
-
 		return internalBuffer;
 	}
 }

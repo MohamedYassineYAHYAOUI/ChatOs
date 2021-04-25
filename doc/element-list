@@ -1,1 +1,5 @@
 fr.uge.net.tcp.client
+fr.uge.net.tcp.frameReaders
+fr.uge.net.tcp.responses
+fr.uge.net.tcp.server
+fr.uge.net.tcp.visitor

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- WARNING: Eclipse auto-generated file.
+              Any modifications will be overwritten.
+              To include a user specific buildfile here, simply create one in the same
+              directory with the processing instruction <?eclipse.ant.import?>
+              as the first entry and export the buildfile again. -->
+<project basedir="." default="build" name="ChatOS">
+	<property environment="env" />
+	<property name="ECLIPSE_HOME" value="../../../../../../../home/mohamed/eclipse/" />
+	<property name="debuglevel" value="source,lines,vars" />
+	<property name="target" value="15" />
+	<property name="source" value="15" />
+	<path id="ChatOS.classpath">
+		<pathelement location="bin" />
+	</path>
+	<path id="run.ClientOS.classpath">
+		<path refid="ChatOS.classpath" />
+	</path>
+	<path id="run.ServerChatOS.classpath">
+		<path refid="ChatOS.classpath" />
+	</path>
+	<target name="init">
+		<mkdir dir="bin" />
+		<copy includeemptydirs="false" todir="bin">
+			<fileset dir="src">
+				<exclude name="**/*.java" />
+			</fileset>
+		</copy>
+	</target>
+	<target name="clean">
+		<delete dir="bin" />
+		<delete dir="exe" />
+	</target>
+	<target depends="clean" name="cleanall" />
+	<target depends="build-subprojects,build-project" name="build" />
+	<target name="build-subprojects" />
+	<target depends="init" name="build-project">
+		<echo message="${ant.project.name}: ${ant.file}" />
+		<javac debug="true" debuglevel="${debuglevel}" destdir="bin" includeantruntime="false" source="${source}" target="${target}">
+			<src path="src" />
+			<classpath refid="ChatOS.classpath" />
+		</javac>
+	</target>
+	<target name="javadoc">
+		<javadoc destdir="doc" sourcepath="src">
+			<fileset dir="src" defaultexcludes="yes">
+				<include name="**" />
+			</fileset>
+		</javadoc>
+	</target>
+
+	<target name="jar" depends="build">
+		<mkdir dir="exe" />
+		<jar basedir="bin" destfile="exe/Client.jar">
+			
+	<manifest>
+				<attribute name="Main-Class" value="fr.uge.net.tcp.client.ClientOS" />
+			</manifest>
+		</jar>
+		<jar basedir="bin" destfile="exe/Server.jar">
+	<manifest>
+				<attribute name="Main-Class" value="fr.uge.net.tcp.server.ServerChatOS" />
+			</manifest>
+		</jar>
+	</target>
+
+</project>
